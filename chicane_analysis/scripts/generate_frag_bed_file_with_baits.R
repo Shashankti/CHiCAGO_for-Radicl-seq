@@ -29,18 +29,23 @@ get_nums <- function(lower,upper,chrom_len,chr_num){
     #get end postion
     rng_end[i] <- sum
     #bait.chr==target.chr & bait.start<=target.end & bait.end>=target.start
-    if(nrow(baits[V1==chr_num & V2<= rng_end[i] & V3>=rng_strt[i]])>0){
+    baits_ovrlp <- baits[chr==chr_num & start<= rng_end[i] & end>=rng_strt[i]]
+    if(nrow(baits_ovrlp)>0){
       rng_strt <- rng_strt[rng_strt!=rng_strt[i]]
       rng_end <- rng_end[rng_end!=rng_end[i]]
       i <- i - 1
+      #we can skip the length of the gene
+      sum <- max(baits_ovrlp$end)
     }
     i <- i + 1
   }
+  print("chrom end")
   diff <- sum-chrom_len
   rng_end[i-1] <- rng_end[i-1]-diff
-  return(data.table(chr=rep(paste0("chr",chr_num),length(rng_end)),
-                    start=rng_strt,
-                    end=rng_end))
+  rtrn <- data.table(chr=rep(chr_num,length(rng_end)),
+             start=rng_strt,
+             end=rng_end)
+  return(rtrn)
 }
 
 #set seed so you can get same results again
