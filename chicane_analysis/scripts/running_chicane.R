@@ -156,6 +156,10 @@ fragments_rdcl <- "~/radicl_seq_analysis/frags_with_baits.bed"
 #bait.ids_rdcl <- read.bed(baits_rdcl)
 #fragment.ids_rdcl <- read.bed(fragments_rdcl)
 
+#need to edit read.bed as issue with scientific notation - see new.read.bed.R
+environment(new.read.bed) <- asNamespace('chicane')
+assignInNamespace("read.bed", new.read.bed, ns = "chicane")
+
 chicane.results.rdcl <- chicane(
   bam = bam_rdcl,
   baits = baits_rdcl,#"~/radicl_seq_analysis/all_genes_location_no_X_Y_M.txt"
