@@ -150,7 +150,8 @@ baits <- fwrite(baits,"~/radicl_seq_analysis/all_genes_location_no_X_Y_M.txt",
 
 bam_rdcl <- "~/radicl_seq_analysis/13.bam"
 baits_rdcl <- "~/radicl_seq_analysis/all_genes_location.txt"
-fragments_rdcl <- "~/radicl_seq_analysis/frags.bed"
+#use frags with baits added- no overlap, see generate_frag_bed_file_with_baits.R
+fragments_rdcl <- "~/radicl_seq_analysis/frags_with_baits.bed"
 
 #bait.ids_rdcl <- read.bed(baits_rdcl)
 #fragment.ids_rdcl <- read.bed(fragments_rdcl)
@@ -166,4 +167,3 @@ chicane.results.rdcl <- chicane(
 
 fwrite(chicane.results.rdcl,
        "~/radicl_seq_analysis/res/cis_zero_int/chicane.results.rdcl.txt")
-
