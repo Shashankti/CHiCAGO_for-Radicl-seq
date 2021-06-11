@@ -1,4 +1,4 @@
-read.bed <- function(bed.path, zero.based = TRUE) {
+new.read.bed <- function(bed.path, zero.based = TRUE) {
     options(scipen = 999)
     ### INPUT TESTS ###########################################################
     
