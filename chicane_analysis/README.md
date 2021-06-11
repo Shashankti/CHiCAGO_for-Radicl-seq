@@ -35,5 +35,7 @@ the three analysis types.
 * **analysing_chicane_res.R** - early attempt at analysing the results from 
 chicane interaction calling based on the qc files.
 
+* **new.read.bed.R** - Update to the chicane read.bed() down to a bug in the author's code
+
 ## chicane_0.1.5.tar.gz
 Zipped chicane package which was requested from the author to deal with a bug in the current CRAN release (11 June 2021)
