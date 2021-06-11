@@ -158,7 +158,7 @@ fragments_rdcl <- "~/radicl_seq_analysis/frags_with_baits.bed"
 
 chicane.results.rdcl <- chicane(
   bam = bam_rdcl,
-  baits = "~/radicl_seq_analysis/all_genes_location_no_X_Y_M.txt",#baits_rdcl,
+  baits = baits_rdcl,#"~/radicl_seq_analysis/all_genes_location_no_X_Y_M.txt"
   fragments = fragments_rdcl,
   interim.data.dir= "~/radicl_seq_analysis/res/cis_zero_int/qc/",#gives qc plots and info
   include.zeros = "cis",
