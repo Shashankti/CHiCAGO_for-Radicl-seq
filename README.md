@@ -11,3 +11,5 @@ Here we have applied algorithms meant for the anlaysis of DNA-DNA interaction da
 ## chicane_analysis
 * Scripts and data specifcally for the analysis of RADICL-Seq data using CHICHANE, see [publication](https://www.nature.com/articles/s41596-021-00498-1)
 
+## chicane_0.1.5.tar.gz
+Zipped chicane package which was requested from the author to deal with a bug in the current CRAN release (11 June 2021)
