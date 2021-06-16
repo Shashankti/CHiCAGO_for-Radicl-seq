@@ -1,0 +1,374 @@
+---
+title: "Analysis of Chicane Results for RADICL-Seq Data"
+author: "Alan Murphy"
+date: "Most recent update:<br> `r Sys.Date()`"
+output: 
+  rmarkdown::html_document: 
+    theme: spacelab
+    highlight: zenburn 
+    code_folding: show 
+    toc: true 
+    toc_float: true
+    smooth_scroll: true
+    number_sections: false 
+    self_contained: true 
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=T, message=F}
+#root.dir <- here::here()
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  #root.dir = root.dir
+  fig.height = 6,
+  fig.width = 7.00787 #178mm
+)  
+knitr::opts_knit$set(#root.dir = root.dir, 
+                     dpi = 350)  
+
+library(data.table)
+library(ggplot2)
+library(cowplot)
+library(ggplot2)
+library(viridis)
+library(dplyr)
+library(genomation)
+```
+
+## Chicane Results & Preprocessing
+
+The results from `Chicane` do contain NA values (we have queried with the authors
+why this occured and are awaiting a response), we first remove these and also 
+add an adjusted p-value groupings for our interactions for later use:
+
+```{r}
+res <- 
+    fread("/rds/general/project/neurogenomics-lab/live/Projects/radicl_seq/data/chicane.results.rdcl.txt")
+#50k NA's are removed
+res <- res[!is.na(p.value)]
+#make bins split res by q.value bins - 
+#go with 0.05 separate as relatively high num and so you get q.val<0.05
+#split rest by .2
+res[,q_bin:=cut(q.value,breaks=c(0,0.05,0.2,0.4,0.6,0.8,1))]
+```
+
+## Distance of Interactions from Transcriptional Start Site
+
+To validate the `Chicane` model for use with RADICL-Seq data, we hypothesised that
+there would be a build up of interacitons found close to the Transcriptional 
+Start Site of the RNA in question. Since this is more likely to occur due to 
+random chance, we hoped `Chicane` would take this into account and that the 
+significant interactions would not be all in this region.
+
+**NOTE** - Since this analysis is based on distance, trans interactions which 
+account for `r round(nrow(res[is.na(distance)])/nrow(res)*100,1)`% of all 
+interactions, could not be included.
+
+First, prepare the data for plotting:
+```{r}
+#need to split out separate row for each count in count column to get density plot
+#remove trans interactions....
+res_stretch_cis <- res[!is.na(distance),.(count2=1:count),names(res)]
+```
+
+Now we can plot. Since we plot the distance on a Log 10 scale, we have added 
+lines at 60Kb and 300Kb to make the plots easier to interpret.
+
+```{r}
+ggplot(res_stretch_cis, aes(log(distance,base=10))) +
+    geom_density(alpha = 0.1)+theme_cowplot()+
+    scale_fill_viridis(name="Adj. P-value Bin",discrete=T)+
+    scale_colour_viridis(name="Adj. P-value Bin",discrete=T)+
+    geom_vline(xintercept=log(60000,base=10), colour="grey") +
+    geom_vline(xintercept=log(300000,base=10), colour="grey") +
+    annotate(x=log(60000,base=10),y=2,label="60Kb",vjust=2,geom="label")+
+    annotate(x=log(300000,base=10),y=2,label="300Kb",vjust=2,geom="label")+
+    xlab("Log 10 Distance from Interaction to RNA")
+```
+
+As can be seen, there is an initial peak of interactions close to the TSS. This
+proves that, as expected, we observe a pile up of interactions at the TSS.There
+are also two other, smaller peaks in the number of interactions at further
+distances.
+
+We ideally want a model which can account for this pile up of interactions which
+is more likely due to random chance. We can check if `Chicane` has accounted for 
+this by splitting the data based on the interactions' adjusted p-value scores:
+
+```{r}
+#split by groups
+ggplot(res_stretch_cis, aes(log(distance,base=10), 
+                                fill = q_bin, colour = q_bin)) +
+    geom_density(alpha = 0.1)+theme_cowplot()+
+    scale_fill_viridis(name="Adj. P-value Bin",discrete=T)+
+    scale_colour_viridis(name="Adj. P-value Bin",discrete=T)+
+    geom_vline(xintercept=log(60000,base=10), colour="grey") +
+    geom_vline(xintercept=log(300000,base=10), colour="grey") +
+    annotate(x=log(60000,base=10),y=2,label="60Kb",vjust=2,geom="label")+
+    annotate(x=log(300000,base=10),y=2,label="300Kb",vjust=2,geom="label")+
+    xlab("Log 10 Distance from Interaction to RNA")
+```
+
+The significant (Adj p-value<0.05) interactions have a peak in interactions 
+further away from the TSS, showing `Chicane` does account for interactions 
+which are more likely due to random chance with fewer of those that are close to
+the TSS being significant.
+
+Finally, we hypothesised that the length of interacting RNA could play a role in
+the distance of the interaction from the TSS. To investigate this, we first have
+to standardise the base pair distance by the RNA length before replotting:
+
+```{r}
+res_stretch_cis[,bait.length:=bait.end-bait.start]
+res_stretch_cis[,stnd_dist:=distance/bait.length]
+
+ggplot(res_stretch_cis, aes(log(stnd_dist,base=10))) +
+    geom_density(alpha = 0.1)+theme_cowplot()+
+    scale_fill_viridis(name="Adj. P-value Bin",discrete=T)+
+    scale_colour_viridis(name="Adj. P-value Bin",discrete=T)+
+    geom_vline(xintercept=log(1,base=10), colour="grey") +
+    geom_vline(xintercept=log(120,base=10), colour="grey") +
+    annotate(x=log(3,base=10),y=.8,label="RNA Length",vjust=2,geom="label")+
+    annotate(x=log(400,base=10),y=.8,label="120x RNA Length",vjust=2,
+             geom="label")+
+    xlab("Log 10 Distance from Interaction to RNA of RNA Length")
+```
+
+Taking into account RNA length leaves just two peaks of the number interactions,
+one occuring where the distance is within the length of the RNA in question and
+another at a distance over 120x the length of the RNA away.
+
+How does controlling for RNA length affect the significant interaction counts:
+
+```{r}
+ggplot(res_stretch_cis, aes(log(stnd_dist,base=10), 
+                            fill = q_bin, colour = q_bin)) +
+    geom_density(alpha = 0.1)+theme_cowplot()+
+    scale_fill_viridis(name="Adj. P-value Bin",discrete=T)+
+    scale_colour_viridis(name="Adj. P-value Bin",discrete=T)+
+    geom_vline(xintercept=log(1,base=10), colour="grey") +
+    geom_vline(xintercept=log(120,base=10), colour="grey") +
+    annotate(x=log(3,base=10),y=1.8,label="RNA Length",vjust=2,geom="label")+
+    annotate(x=log(400,base=10),y=1.8,label="120x RNA Length",vjust=2,
+                geom="label")+
+    xlab("Log 10 Distance from Interaction to RNA of RNA Length")
+```
+
+The vast majority of cis significant interactions occur at a distance from the 
+TSS within the length of the RNA. This is interesting as the more distant peak
+in the significant interactions is removed when you control for RNA length.
+
+This made us question if there is a relationship between the adjusted p-value 
+and the RNA length. We would hope that there wouldn't be a strong relationship 
+as, if there was, it may indicate that `Chicane` which is meant to be used for 
+DNA-DNA interaction data (e.g. Capture Hi-C) may not be suitable for RNA-DNA 
+interaction data (RADICL-Seq). DNA-DNA interaction dataset models may not need 
+to control for the length of the DNA that binds since this wouldn't fluctuate as
+much as RNA length in RNA-DNA interactions. To test this we performed a simple
+non-parametric correlation test on the cis interactions:
+
+```{r}
+#is there a relationship between RNA length and q-value?
+cor.test(res_stretch_cis$bait.length,res_stretch_cis$q.value,
+            method = "spearman",exact = F)
+```
+
+This correlation test actually showed the opposite, an increase in RNA length 
+was related to an increase in adjusted p-value. This proved that the significant
+interactions produced by `Chicane` were not driven by the RNA length and thus 
+increased our confidence int he use of the model for this data type.
+
+## ChromHMM Chromatin States where Interactions Occur
+
+ChromHMM reference datasets can be used to infer the differing regulatory 
+sections of the genome e.g. active Transcriptional Start Sites. We wanted to 
+investiage in which chromatin states, the interactions found by RADICL-Seq were
+more frequently found. The RADICL-Seq data was from NiGa cells from 
+differentiated human adipose-derived stem cells thus we used the [Adipose Derived 
+Mesenchymal Stem Cell Cultured Cells (hg38) E025 reference map from Roadmap](https://egg2.wustl.edu/roadmap/data/byFileType/chromhmmSegmentations/ChmmModels/coreMarks/jointModel/final/).
+Matching the cell type ensured no differing, celltype specific epigenetic 
+features.
+
+The reference map can be loaded as follows:
+```
+#E025 Adipose Derived Mesenchymal Stem Cell Cultured Cells - hg38
+#from: https://egg2.wustl.edu/roadmap/data/byFileType/chromhmmSegmentations/ChmmModels/coreMarks/jointModel/final/
+#This bed file only contains one metadata column so genomation::readBed will fail
+#Approach below uses code from in this function
+chrHMM_url <- 
+    "https://egg2.wustl.edu/roadmap/data/byFileType/chromhmmSegmentations/ChmmModels/coreMarks/jointModel/final/E025_15_coreMarks_hg38lift_segments.bed.gz"
+file <- genomation:::compressedAndUrl2temp(chrHMM_url)
+#read in as dataframe
+df<-readr::read_delim(file,skip=0,col_names=FALSE, delim="\t")
+names(df) <- c("chr","start","end","ChromHMM") 
+#make GRanges obj
+g = GenomicRanges::makeGRangesFromDataFrame(
+    df, 
+    keep.extra.columns=FALSE, 
+    starts.in.df.are.0based=FALSE,
+    ignore.strand=is.null(NULL))
+col.names1=list(chr=1,start=2,end=3,strand=NULL)
+black.names=c("seqnames", "ranges", "strand", "seqlevels", "seqlengths",
+              "isCircular", "start", "end", "width", "element")
+my.mcols = df[,-unlist(col.names1),drop=FALSE]
+#add meta data column
+GenomicRanges::mcols(g) = my.mcols[, !colnames(my.mcols) %in% black.names]
+#split GRange object by the different names
+chrHMM_list <- GenomicRanges::split(g, g$ChromHMM, drop = TRUE)
+#get state names for IDs
+sort(unique(df$ChromHMM))
+```
+
+The 15 states associated with the reference map are discussed [here](https://www.nature.com/articles/nature14309) 
+but in short are:
+
+* 1_TssA active transcription start site (TSS)  -proximal promoter states 
+* 2_TssAFlnk Flanking active transcription start site (TSS). -proximal promoter states 
+* 3_TxFlnk a transcribed state at the 5′ and 3′ end of genes -showing both promoter and enhancer signatures
+* 4_Tx Strong transcription
+* 5_TxWk Weak transcription
+* 6_EnhG Genic enhancer -genic enhancers occur more frequently in gene bodies & in exons, while enhancers don't
+* 7_Enh enhancers
+* 8_ZNF/Rpts zinc finger protein genes and repeats. -ZNFs are involved in the regulation of several cellular processes (v abundant)
+* 9_Het heterochromatin. - tightly packed DNA, inactive states 
+* 10_TssBiv bivalent/poised transcription start site. -both activation and repression (low expression), poised to express
+* 11_BivFlnk flanking bivalent transcription start site/enhancer
+* 12_EnhBiv bivalent enhancer
+* 13_ReprPC repressed Polycomb. -gene silencing
+* 14_ReprPCWk weak repressed Polycomb
+* 15_Quies quiescent/low - inactivity/dormitary
+
+Roughly, states 1-7 are active transcriptional sites while 8-15 are inactive or 
+poised.
+
+We need to preprocess and convert our `Chicane` results into a GRange object to
+compare overlapping regions with our reference map. We want to split the results
+based on the adjusted p-value groups were created earlier:
+```
+setnames(res,c("target.chr","target.start","target.end"),
+            c("chr","start","end"))
+            #make GRanges
+gres = GenomicRanges::makeGRangesFromDataFrame(
+    res, 
+    keep.extra.columns=TRUE, 
+    starts.in.df.are.0based=FALSE,
+    ignore.strand=TRUE)
+#now split based on q-value bins
+gres_list <- GenomicRanges::split(gres, gres$q_bin, drop = TRUE)
+rm(gres)
+```
+Now we can make an annotation object using `genomation` which inspects the 
+regions of the genome where interactions were found:
+```
+annotation <- 
+    genomation::annotateWithFeatures(gres_list, chrHMM_list)
+```
+```{r,echo=FALSE}
+annotation <- 
+    readRDS("/rds/general/project/neurogenomics-lab/live/Projects/radicl_seq/data/ChromHMM_state_annotation.rds")
+```
+
+Next we can get the overlap percentages of the interactions to each of the 
+different states. 
+
+**Note** that this won't add up to 100% for each adjusted p-value
+group since it measures the proportion of the DNA segment from the interaction 
+that overlaps a specific state. A single interaction could be split across 
+states, for example with 20% of its base pairs in a active TSS (state 1) and
+70% of its base pairs in a flanking active TSS (state 2) and the remaining 10%
+in a unmarked region of DNA.
+
+```{r}
+#don't produce heatmap, take matrix, standardise and replot
+annot_mtrx <- genomation::heatTargetAnnotation(annotation,plot=FALSE)
+#change column order
+col.order <- paste0("E",1:15)
+annot_mtrx <- annot_mtrx[,col.order]
+```
+
+Now we can plot and see where our interactions lie:
+```{r}
+#plot raw first
+#convert to df
+annot_df<-reshape2::melt(annot_mtrx)
+names(annot_df) <- c("q-value","State","Overlap")
+#Add better explaining state names
+annot_df <- annot_df%>% 
+    mutate(State_name = as.factor(case_when(
+        .$State == "E1" ~ "1.Active.TSS",
+        .$State == "E2" ~ "2.Flanking.Active.TSS",
+        .$State == "E3" ~ "3.Flanking.Transcribed.State",
+        .$State == "E4" ~ "4.Strong.Transcription",
+        .$State == "E5" ~ "5.Weak.Transcription",
+        .$State == "E6" ~ "6.Genic.Enhancer",
+        .$State == "E7" ~ "7.Enhancer",
+        .$State == "E8" ~ "8.ZNC.Finger.Prot.&.Repeats",
+        .$State == "E9" ~ "9.Heterochromatin",
+        .$State == "E10" ~ "10.Bivalent/Poised.TSS",
+        .$State == "E11" ~ "11.Flanking.Bivalent.TSS",
+        .$State == "E12" ~ "12.Bivalent.Enhancer",
+        .$State == "E13" ~ "13.Repressed.Polycomb",
+        .$State == "E14" ~ "14.Weak.Repressed.Polycomb",
+        .$State == "E15" ~ "15.Quiescent")))
+
+# Reorder factor levels for plot
+annot_df$State_name <- 
+    factor(annot_df$State_name,
+            levels = levels(annot_df$State_name)[c(1,8:15,2:7)])
+ggplot(annot_df,aes(x=State_name,y=`q-value`,fill=Overlap))+
+    geom_tile()+theme_cowplot()+scale_fill_viridis_c()+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+    xlab("ChromHMM State")+
+    ylab("Adj. P-value Bin")
+```
+
+It is interesting that the majority of the regions where the interactions were 
+found are related to active transcription. This holds across all ajusted p-value
+groups. This highlights that genom-wide RNA interactions may regulate 
+transcription (**NB** Need to discuss this further....).
+
+To investigate if there was any difference in the states where the significant 
+interactions (adj. p-value<0.05) were more likely to be found, we can 
+standardise the overlap percentage for each state and replot:
+
+```{r}
+#try standardising across states
+scl_annot_mtrx <- apply(annot_mtrx,2,function(x) scale(x)[,1])
+#plot
+scl_annot_df<-reshape2::melt(scl_annot_mtrx)
+names(scl_annot_df) <- c("q-value","State","Overlap")
+#Add better explaining state names
+scl_annot_df <- scl_annot_df%>% 
+    mutate(State_name = as.factor(case_when(
+        .$State == "E1" ~ "1.Active.TSS",
+        .$State == "E2" ~ "2.Flanking.Active.TSS",
+        .$State == "E3" ~ "3.Flanking.Transcribed.State",
+        .$State == "E4" ~ "4.Strong.Transcription",
+        .$State == "E5" ~ "5.Weak.Transcription",
+        .$State == "E6" ~ "6.Genic.Enhancer",
+        .$State == "E7" ~ "7.Enhancer",
+        .$State == "E8" ~ "8.ZNC.Finger.Prot.&.Repeats",
+        .$State == "E9" ~ "9.Heterochromatin",
+        .$State == "E10" ~ "10.Bivalent/Poised.TSS",
+        .$State == "E11" ~ "11.Flanking.Bivalent.TSS",
+        .$State == "E12" ~ "12.Bivalent.Enhancer",
+        .$State == "E13" ~ "13.Repressed.Polycomb",
+        .$State == "E14" ~ "14.Weak.Repressed.Polycomb",
+        .$State == "E15" ~ "15.Quiescent")))
+# Reorder factor levels for plot
+scl_annot_df$State_name <- 
+    factor(scl_annot_df$State_name,
+           levels = levels(scl_annot_df$State_name)[c(1,8:15,2:7)])
+ggplot(scl_annot_df,aes(x=State_name,y=`q-value`,fill=Overlap))+
+    geom_tile()+theme_cowplot()+scale_fill_viridis_c()+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+    xlab("ChromHMM State")+
+    ylab("Adj. P-value Bin")
+```
+
+Interestingly, this shows that significant interactions are found morefrequently
+in the inactive or poised regions of the genome. This may suggest that 
+significant interactions may play more of a role in preventing transcription
+(**NB** Need to discuss this further....).
