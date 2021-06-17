@@ -143,7 +143,7 @@ cl <- parallel::makeCluster(number_threads)
 doParallel::registerDoParallel(cl)
 set.seed(101)
 frags <- 
-  foreach::foreach(x = seq_along(chrsize$size)[!seq_along(chrsize$size) %in% c(1,2,3)],
+  foreach::foreach(x = seq_along(chrsize$size),
                     .packages = c("data.table","stats")) %dopar% {
                       chr_num <- paste0("chr",x)
                       lower <- 16
