@@ -96,9 +96,13 @@ res_biotyp[gene_biotype=="ribozyme",gene_biotype_hl:=gene_biotype]
 res_biotyp[gene_biotype=="scRNA",gene_biotype_hl:=gene_biotype]
 res_biotyp[grepl( "IG_", gene_biotype),gene_biotype_hl:="IG_gene"]
 
+#add proportional counts
+res_counts <- res_biotyp[q.value<0.05,.N,by=.(interaction,gene_biotype_hl)]
+res_counts[,all_N:=sum(N),by=interaction]
+res_counts[,prop:=(N/all_N)]
 #plot sig with higher and lower level RNA types
-ggplot(res_biotyp[q.value<0.05], aes(x=gene_biotype_hl,fill=gene_biotype_hl)) +
-    geom_bar(aes(y = (..count..)/sum(..count..)))+
+ggplot(res_counts,aes(x=gene_biotype_hl,y=prop,fill=gene_biotype_hl)) +
+    geom_bar(stat="identity")+
     facet_wrap(~interaction)+
     theme_cowplot()+
     scale_fill_viridis(discrete=T)+
@@ -107,8 +111,12 @@ ggplot(res_biotyp[q.value<0.05], aes(x=gene_biotype_hl,fill=gene_biotype_hl)) +
     ylab("")+
     xlab("Proportion of significant cis/trans interactions")
 
-ggplot(res_biotyp[q.value<0.05], aes(x=gene_biotype,fill=gene_biotype)) +
-    geom_bar(aes(y = (..count..)/sum(..count..)))+
+#add proportional counts
+res_counts <- res_biotyp[q.value<0.05,.N,by=.(interaction,gene_biotype)]
+res_counts[,all_N:=sum(N),by=interaction]
+res_counts[,prop:=(N/all_N)]
+ggplot(res_counts, aes(x=gene_biotype,y=prop,fill=gene_biotype)) +
+    geom_bar(stat="identity")+
     facet_wrap(~interaction)+
     theme_cowplot()+
     scale_fill_viridis(discrete=T)+

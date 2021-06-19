@@ -35,6 +35,7 @@ library(ggplot2)
 library(viridis)
 library(dplyr)
 library(genomation)
+library(biomaRt)
 ```
 
 ## Chicane Results & Preprocessing
@@ -396,7 +397,6 @@ colnames(baits) <- c("chr","start","end","bait_name")
 res[,bait_name := baits$bait_name[match(res$bait.start,baits$start)]]
 
 genes <- unique(res$bait_name)
-library(biomaRt)
 mart <- useMart("ENSEMBL_MART_ENSEMBL", host = "useast.ensembl.org")
 mart <- useDataset("hsapiens_gene_ensembl", mart)
 annotLookup <- getBM(
@@ -479,8 +479,12 @@ type of RNA that are involved in cis or trans interactions:
 
 ```{r}
 #plot sig with higher and lower level RNA types
-ggplot(res_biotyp[q.value<0.05], aes(x=gene_biotype_hl,fill=gene_biotype_hl)) +
-    geom_bar(aes(y = (..count..)/sum(..count..)))+
+#add proportional counts
+res_counts <- res_biotyp[q.value<0.05,.N,by=.(interaction,gene_biotype_hl)]
+res_counts[,all_N:=sum(N),by=interaction]
+res_counts[,prop:=(N/all_N)]
+ggplot(res_counts,aes(x=gene_biotype_hl,y=prop,fill=gene_biotype_hl)) +
+    geom_bar(stat="identity")+
     facet_wrap(~interaction)+
     theme_cowplot()+
     scale_fill_viridis(discrete=T)+
@@ -495,8 +499,11 @@ trans-interactions whereas the opposite is true for protein-coding RNA. We can
 see which non-coding RNA are typically involved too:
 
 ```{r}
-ggplot(res_biotyp[q.value<0.05], aes(x=gene_biotype,fill=gene_biotype)) +
-    geom_bar(aes(y = (..count..)/sum(..count..)))+
+res_counts <- res_biotyp[q.value<0.05,.N,by=.(interaction,gene_biotype)]
+res_counts[,all_N:=sum(N),by=interaction]
+res_counts[,prop:=(N/all_N)]
+ggplot(res_counts, aes(x=gene_biotype,y=prop,fill=gene_biotype)) +
+    geom_bar(stat="identity")+
     facet_wrap(~interaction)+
     theme_cowplot()+
     scale_fill_viridis(discrete=T)+
