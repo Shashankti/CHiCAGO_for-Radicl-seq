@@ -15,4 +15,4 @@ Here we have applied algorithms meant for the anlaysis of DNA-DNA interaction da
 Click on the following to view the differing analysis of the RADICL-Seq data 
 using Chicane:
 
-* [Interaction Distance & ChromHMM Genome State Analysis](https://Shashankti.github.io/CHiCAGO_for-Radicl-seq/chicane_analysis/analysis_dist_ChromHMM.html)
+* [Interaction Distance, ChromHMM Genome State & Coding Non-coding RNA Analysis](https://Shashankti.github.io/CHiCAGO_for-Radicl-seq/chicane_analysis/analysis_dist_ChromHMM.html)

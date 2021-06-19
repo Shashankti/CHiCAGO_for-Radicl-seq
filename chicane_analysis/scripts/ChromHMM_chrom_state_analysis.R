@@ -80,74 +80,21 @@ annot_mtrx <- genomation::heatTargetAnnotation(annotation,plot=FALSE)
 col.order <- paste0("E",1:15)
 annot_mtrx <- annot_mtrx[,col.order]
 #plot raw first
-#convert to df
+#conver to df
 annot_df<-reshape2::melt(annot_mtrx)
 names(annot_df) <- c("q-value","State","Overlap")
-#Add better explaining state names
-library(dplyr)
-annot_df <- annot_df%>% 
-    mutate(State_name = as.factor(case_when(
-        .$State == "E1" ~ "1.Active.TSS",
-        .$State == "E2" ~ "2.Flanking.Active.TSS",
-        .$State == "E3" ~ "3.Flanking.Transcribed.State",
-        .$State == "E4" ~ "4.Strong.Transcription",
-        .$State == "E5" ~ "5.Weak.Transcription",
-        .$State == "E6" ~ "6.Genic.Enhancer",
-        .$State == "E7" ~ "7.Enhancer",
-        .$State == "E8" ~ "8.ZNC.Finger.Prot.&.Repeats",
-        .$State == "E9" ~ "9.Heterochromatin",
-        .$State == "E10" ~ "10.Bivalent/Poised.TSS",
-        .$State == "E11" ~ "11.Flanking.Bivalent.TSS",
-        .$State == "E12" ~ "12.Bivalent.Enhancer",
-        .$State == "E13" ~ "13.Repressed.Polycomb",
-        .$State == "E14" ~ "14.Weak.Repressed.Polycomb",
-        .$State == "E15" ~ "15.Quiescent")))
 library(ggplot2)
 library(cowplot)
 library(viridis)
-# Reorder factor levels for plot
-annot_df$State_name <- 
-    factor(annot_df$State_name,
-            levels = levels(annot_df$State_name)[c(1,8:15,2:7)])
-ggplot(annot_df,aes(x=State_name,y=`q-value`,fill=Overlap))+
-    geom_tile()+theme_cowplot()+scale_fill_viridis_c()+
-    theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-    xlab("ChromHMM State")+
-    ylab("Adj. P-value Bin")
+ggplot(annot_df,aes(x=State,y=`q-value`,fill=Overlap))+
+    geom_tile()+theme_cowplot()+scale_fill_viridis_c()
 #very little notable difference in each state for diff q-values
 #try standardising across states
 scl_annot_mtrx <- apply(annot_mtrx,2,function(x) scale(x)[,1])
 #plot
 scl_annot_df<-reshape2::melt(scl_annot_mtrx)
 names(scl_annot_df) <- c("q-value","State","Overlap")
-#Add better explaining state names
-library(dplyr)
-scl_annot_df <- scl_annot_df%>% 
-    mutate(State_name = as.factor(case_when(
-        .$State == "E1" ~ "1.Active.TSS",
-        .$State == "E2" ~ "2.Flanking.Active.TSS",
-        .$State == "E3" ~ "3.Flanking.Transcribed.State",
-        .$State == "E4" ~ "4.Strong.Transcription",
-        .$State == "E5" ~ "5.Weak.Transcription",
-        .$State == "E6" ~ "6.Genic.Enhancer",
-        .$State == "E7" ~ "7.Enhancer",
-        .$State == "E8" ~ "8.ZNC.Finger.Prot.&.Repeats",
-        .$State == "E9" ~ "9.Heterochromatin",
-        .$State == "E10" ~ "10.Bivalent/Poised.TSS",
-        .$State == "E11" ~ "11.Flanking.Bivalent.TSS",
-        .$State == "E12" ~ "12.Bivalent.Enhancer",
-        .$State == "E13" ~ "13.Repressed.Polycomb",
-        .$State == "E14" ~ "14.Weak.Repressed.Polycomb",
-        .$State == "E15" ~ "15.Quiescent")))
-# Reorder factor levels for plot
-scl_annot_df$State_name <- 
-    factor(scl_annot_df$State_name,
-           levels = levels(scl_annot_df$State_name)[c(1,8:15,2:7)])
-ggplot(scl_annot_df,aes(x=State_name,y=`q-value`,fill=Overlap))+
-    geom_tile()+theme_cowplot()+scale_fill_viridis_c()+
-    theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-    xlab("ChromHMM State")+
-    ylab("Adj. P-value Bin")
+ggplot(scl_annot_df,aes(x=State,y=`q-value`,fill=Overlap))+
+    geom_tile()+theme_cowplot()+scale_fill_viridis_c()
 save(annotation,annot_df,scl_annot_df,file=
      "/rds/general/project/neurogenomics-lab/live/Projects/radicl_seq/data/ChromHMM_state_results.RData")
-saveRDS(annotation,"/rds/general/project/neurogenomics-lab/live/Projects/radicl_seq/data/ChromHMM_state_annotation.rds")

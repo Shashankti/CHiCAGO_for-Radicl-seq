@@ -70,5 +70,8 @@ in
 * **analy_inter_dist.R** - Analysing the distance from the Transcriptional Start
 Site (TSS) of the noted radicl-seq interactions.
 
+* **coding_non_coding_analysis** - Analysing trends for interactions based on 
+the RNA type (coding, non-coding and subtypes)
+
 ## chicane_0.1.5.tar.gz
 Zipped chicane package which was requested from the author to deal with a bug in the current CRAN release (11 June 2021)
