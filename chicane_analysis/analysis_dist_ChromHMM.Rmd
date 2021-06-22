@@ -490,8 +490,8 @@ ggplot(res_counts,aes(x=gene_biotype_hl,y=prop,fill=gene_biotype_hl)) +
     scale_fill_viridis(discrete=T)+
     theme(axis.text.x = element_text(angle = 45, hjust = 1),
             legend.position="none")+
-    ylab("")+
-    xlab("Proportion of significant cis/trans interactions")
+    xlab("")+
+    ylab("Proportion of significant cis/trans interactions")
 ```
 
 It is clear that there is preferential for non-coding RNA to have 
@@ -563,6 +563,80 @@ ggplot(res_biotyp[q.value<0.05 & interaction=="cis" &
 
 There appears to be no discernible difference in the distance of the cis 
 interactions across RNA types.
+
+We can look into these differences further but first, let's consider the 
+differences between significant cis and trans interactions. There are
+`r nrow(res[q.value<0.05])` significant interactions. Of 
+these, `r round(nrow(res[is.na(distance) & q.value<0.05])/nrow(res[q.value<0.05])*100,1)`%
+are trans whereas `r round(nrow(res[!is.na(distance) & q.value<0.05])/nrow(res[q.value<0.05])*100,1)`%
+are cis. Is there a small number of RNAs contributing to all of these cis or 
+trans interactions?
+  
+```{r}
+#get the number of interactions per RNA for trans/cis
+res_meta <- res[q.value<0.05,list(sum(count),length(unique(bait_name))),
+      by=interaction]
+res_meta[,prop:=V1/V2]
+
+#now get
+ggplot(res_meta, 
+       aes(x=interaction,y=prop,fill=interaction)) +
+  geom_bar(stat="identity")+
+  theme_cowplot()+
+  scale_fill_viridis(discrete=T)+
+  theme(legend.position="none")+
+  ylab("Number of Interactions per RNA")+
+  xlab("Interaction Type")
+```
+
+Roughly the same number of interactions per RNA for trans and cis interactions.
+
+What if interactions associated with Malat1 and Neat1 are dropped, how does
+that affect: vast majority (80%+) of trans interactions are by non-coding RNA; 
+predominately lncRNAs and the majority of cis are by protein coding RNAs (75%+)?
+
+```{r}
+#remove Malat1 and Neat1 and then replot
+#plot sig with higher and lower level RNA types
+#add proportional counts
+res_counts_excl <- res_biotyp[q.value<0.05 & !(bait_name %in% 
+                                                  c("MALAT1","NEAT1")),
+                                .N,by=.(interaction,gene_biotype_hl)]
+res_counts_excl[,all_N:=sum(N),by=interaction]
+res_counts_excl[,prop:=(N/all_N)]
+ggplot(res_counts_excl,aes(x=gene_biotype_hl,y=prop,fill=gene_biotype_hl)) +
+  geom_bar(stat="identity")+
+  facet_wrap(~interaction)+
+  theme_cowplot()+
+  scale_fill_viridis(discrete=T)+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+  xlab("RNA types - Excl MALAT1, NEAT1")+
+  ylab("Proportion of significant cis/trans interactions")
+```
+
+So when MALAT1 and NEAT1 are removed, both cis and trans interactions appear to
+have the same proportions of RNA types with preferential binding. Does this hold
+for the RNA subtypes?
+  
+```{r}
+res_counts_excl <- res_biotyp[q.value<0.05 & !(bait_name %in% 
+                                                  c("MALAT1","NEAT1")),
+                                .N,by=.(interaction,gene_biotype)]
+res_counts_excl[,all_N:=sum(N),by=interaction]
+res_counts_excl[,prop:=(N/all_N)]
+ggplot(res_counts_excl, aes(x=gene_biotype,y=prop,fill=gene_biotype)) +
+  geom_bar(stat="identity")+
+  facet_wrap(~interaction)+
+  theme_cowplot()+
+  scale_fill_viridis(discrete=T)+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+  xlab("RNA types - Excl MALAT1, NEAT1")+
+  ylab("Proportion of significant cis/trans interactions")
+```
+
+Again the proportions appear identical when MALAT1 and NEAT1 are excluded.
 
 *TO DO* - Next I'd ideally like to annotate the DNA these RNA Bind to 
 (similar to ChromHMM but giving......)
