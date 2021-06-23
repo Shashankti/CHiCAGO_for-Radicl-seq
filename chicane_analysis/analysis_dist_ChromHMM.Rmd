@@ -599,7 +599,7 @@ setkey(res,bait_name)
 setkey(annotLookup,bait_name)
 res[annotLookup,gene_biotype:= i.gene_biotype]
 #clear memory
-rm(genes,annotLookup,mart,baits)
+rm(genes,annotLookup,mart)
 #10,004,838 with 1,716,157 without
 res_biotyp <- res[!is.na(gene_biotype),]
 ```
@@ -654,6 +654,39 @@ res_biotyp[grepl( "IG_", gene_biotype),gene_biotype_hl:="IG_gene"]
 #update naming to pcRNA
 res_biotyp[gene_biotype=="protein_coding",gene_biotype:="pcRNA"]
 ```
+
+Before we look at any in depth questions, what is the breakdown of our 
+significant interactions by RNA type?
+
+```{r}
+ggplot(res_biotyp[q.value<0.05,],
+        aes(x=gene_biotype_hl,fill=gene_biotype_hl)) +
+    geom_bar()+
+    theme_cowplot()+
+    scale_fill_viridis(discrete=T)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position="none")+
+    xlab("")+
+    ylab("Number of significant interactions")
+```
+
+And if we exclude MALAT1 and NEAT1
+
+```{r}
+ggplot(res_biotyp[q.value<0.05 & !(bait_name %in% 
+                                                  c("MALAT1","NEAT1")),],
+        aes(x=gene_biotype_hl,fill=gene_biotype_hl)) +
+    geom_bar()+
+    theme_cowplot()+
+    scale_fill_viridis(discrete=T)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position="none")+
+    xlab("Excluding MALAT1 & NEAT1")+
+    ylab("Number of significant interactions")
+```
+
+So excluding MALAT1 and NEAT1 most significant interactions are by 
+protein-coding RNA.
 
 The first thing we wanted to know was whether there was a difference in the 
 type of RNA that are involved in cis or trans interactions:
@@ -791,6 +824,36 @@ ggplot(res_biotyp[q.value<0.05 & interaction=="cis" &
 
 MALAT1 and NEAT1 seem to only interact at long distances from where they are 
 transcribed.
+
+Now we have this lower level of RNA states we can also view the number of 
+significant interactions for each:
+
+```{r}
+ggplot(res_biotyp[q.value<0.05,],
+        aes(x=gene_biotype_excl,fill=gene_biotype_excl)) +
+    geom_bar()+
+    theme_cowplot()+
+    scale_fill_viridis(discrete=T)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position="none")+
+    xlab("")+
+    ylab("Number of significant interactions")
+```
+
+And without MALAT1 and NEAT1:
+
+```{r}
+ggplot(res_biotyp[q.value<0.05 & !(bait_name %in% 
+                                                  c("MALAT1","NEAT1")),],
+        aes(x=gene_biotype_excl,fill=gene_biotype_excl)) +
+    geom_bar()+
+    theme_cowplot()+
+    scale_fill_viridis(discrete=T)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position="none")+
+    xlab("")+
+    ylab("Number of significant interactions")
+```
 
 What if we look at these distances normalised to the RNA length:
 
@@ -1016,8 +1079,7 @@ res_biotyp[q.value<0.05,.N,by=gene_biotype_excl][N<=10]$gene_biotype_excl
 #removed pseudogene RNAs too to compare coding and non-coding directly
 sig_res_rna_typ <-
   res_biotyp[q.value<0.05 & 
-               !(gene_biotype_excl %in% c("IG_gene",
-                                          "misc_RNA","snoRNA",
+               !(gene_biotype_excl %in% c("IG_gene","misc_RNA","snoRNA",
                                           "TR_J_gene","TR_V_gene"))]
 setnames(sig_res_rna_typ,c("target.chr","target.start","target.end"),
          c("chr","start","end"))
@@ -1089,4 +1151,33 @@ while all others do.
 * Pseudogenes seem to bind less frequently in states 2-7 than ncRNA and pcRNA.
 * The pcRNA and ncRNA seem to have significant overlap with the quiescent state 
 that isn't present in the other inactive stages (8-14) or in the pseudogenes.
+* It is also notable that miRNA bind preferentially to enhancers, noted in (literature)[https://pubmed.ncbi.nlm.nih.gov/28639195/]
 
+Now we want to understand what interactions between the RNA types and specific 
+states are significant. To do this, we performed a chi-squared test. We wanted 
+to avoid, in the first place, running individual tests for each state-RNA 
+interaction overlap score. So we started with an overall difference in 
+distribution test (chi-square) and then did multiple-testing corrected post-hoc 
+comparisons.
+
+*Reminder* - Chi-Square test tests for a relationship between two categorical 
+variables, in our case RNA Type and ChromHMM state. Null hypothesis is there is 
+no relationship.
+
+```{r}
+#convert back to nxm matrix
+annot_mtrx <- 
+  reshape2::dcast(annot_df, `RNA Type` ~ State_name,value.var = "Overlap")
+# RNA Type given own column in matrix, change to row names
+rownames(annot_mtrx) <- annot_mtrx[,"RNA Type"]
+annot_mtrx <- annot_mtrx[,-1]
+chisq <- chisq.test(annot_mtrx, correct = TRUE)
+chisq
+```
+
+So there is a relationship between RNA type and ChromHMM state. Let's look at 
+the significance of specific interactions:
+
+```{r}
+
+```
