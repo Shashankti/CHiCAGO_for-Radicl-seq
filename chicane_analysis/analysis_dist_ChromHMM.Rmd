@@ -760,6 +760,9 @@ interactions:
 ```{r}
 #create separate column for MALAT1, NEAT1, gene biotype
 res_biotyp[,gene_biotype_excl:=gene_biotype]
+#combine all pseudogenes - low numbers
+res_biotyp[gene_biotype_hl=="pseudogene",gene_biotype_excl:=gene_biotype_hl]
+res_biotyp[gene_biotype_hl=="IG_gene",gene_biotype_excl:=gene_biotype_hl]
 res_biotyp[bait_name=="MALAT1",gene_biotype_excl:=bait_name]
 res_biotyp[bait_name=="NEAT1",gene_biotype_excl:=bait_name]
 #snoRNA,misc_RNA removed too low cases - 2,3
@@ -1009,16 +1012,13 @@ sort(unique(df$ChromHMM))
 #set up results with coding non-coding info
 #RNA types with less than 10 interactions removed
 res_biotyp[q.value<0.05,.N,by=gene_biotype_excl][N<=10]$gene_biotype_excl
-#[1] "unitary_pseudogene"     "IG_V_pseudogene"        "polymorphic_pseudogene" "misc_RNA"              
-#[5] "rRNA_pseudogene"        "snoRNA"                 "TR_J_gene"              "TR_V_gene"
+#[1] "IG_gene" "misc_RNA" "snoRNA" "TR_J_gene"  "TR_V_gene"
 #removed pseudogene RNAs too to compare coding and non-coding directly
 sig_res_rna_typ <-
   res_biotyp[q.value<0.05 & 
-               !(gene_biotype_excl %in% c("unitary_pseudogene",
-                                            "IG_V_pseudogene",
-                                            "polymorphic_pseudogene","misc_RNA",
-                                            "rRNA_pseudogene","snoRNA",
-                                            "TR_J_gene","TR_V_gene"))]
+               !(gene_biotype_excl %in% c("IG_gene",
+                                          "misc_RNA","snoRNA",
+                                          "TR_J_gene","TR_V_gene"))]
 setnames(sig_res_rna_typ,c("target.chr","target.start","target.end"),
          c("chr","start","end"))
 #make GRanges
