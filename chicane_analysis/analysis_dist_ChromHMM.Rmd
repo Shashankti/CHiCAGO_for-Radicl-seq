@@ -36,6 +36,7 @@ library(viridis)
 library(dplyr)
 library(genomation)
 library(biomaRt)
+library(ggpubr)
 ```
 
 ## Chicane Results & Preprocessing
@@ -53,6 +54,12 @@ res <- res[!is.na(p.value)]
 #go with 0.05 separate as relatively high num and so you get q.val<0.05
 #split rest by .2
 res[,q_bin:=cut(q.value,breaks=c(0,0.05,0.2,0.4,0.6,0.8,1))]
+#get gene names added on to results
+baits <- 
+    fread("/rds/general/project/neurogenomics-lab/live/Projects/radicl_seq/data/all_genes_location.txt",
+            header = FALSE,stringsAsFactors = FALSE)
+colnames(baits) <- c("chr","start","end","bait_name")    
+res[,bait_name := baits$bait_name[match(res$bait.start,baits$start)]]
 ```
 
 ## Distance of Interactions from Transcriptional Start Site
@@ -112,6 +119,26 @@ ggplot(res_stretch_cis, aes(log(distance,base=10),
     xlab("Log 10 Distance from Interaction to RNA")
 ```
 
+**NOTE** - A significant proportion of all interactions are by MALAT1 and NEAT1
+which can skew the data (discused in coding vs non-coding section). Thus all 
+plots will also be shown excluding interactions from these RNA.
+
+```{r}
+#Exlcuding 
+#split by groups
+ggplot(res_stretch_cis[!(bait_name %in% c("MALAT1","NEAT1"))], 
+        aes(log(distance,base=10), fill = q_bin, colour = q_bin)) +
+    geom_density(alpha = 0.1)+theme_cowplot()+
+    scale_fill_viridis(name="Adj. P-value Bin",discrete=T)+
+    scale_colour_viridis(name="Adj. P-value Bin",discrete=T)+
+    geom_vline(xintercept=log(60000,base=10), colour="grey") +
+    geom_vline(xintercept=log(300000,base=10), colour="grey") +
+    annotate(x=log(60000,base=10),y=2,label="60Kb",vjust=2,geom="label")+
+    annotate(x=log(300000,base=10),y=2,label="300Kb",vjust=2,geom="label")+
+    xlab("Log 10 Distance from Interaction to RNA")
+```
+Excluding MALAT1 and NEAT1 has no effect.
+
 The significant (Adj p-value<0.05) interactions have a peak in interactions 
 further away from the TSS, showing `Chicane` does account for interactions 
 which are more likely due to random chance with fewer of those that are close to
@@ -157,6 +184,23 @@ ggplot(res_stretch_cis, aes(log(stnd_dist,base=10),
     xlab("Log 10 Distance from Interaction to RNA of RNA Length")
 ```
 
+And excluding MALAT1 and NEAT1:
+
+```{r}
+ggplot(res_stretch_cis[!(bait_name %in% c("MALAT1","NEAT1"))], 
+        aes(log(stnd_dist,base=10),fill = q_bin, colour = q_bin)) +
+    geom_density(alpha = 0.1)+theme_cowplot()+
+    scale_fill_viridis(name="Adj. P-value Bin",discrete=T)+
+    scale_colour_viridis(name="Adj. P-value Bin",discrete=T)+
+    geom_vline(xintercept=log(1,base=10), colour="grey") +
+    geom_vline(xintercept=log(120,base=10), colour="grey") +
+    annotate(x=log(3,base=10),y=1.8,label="RNA Length",vjust=2,geom="label")+
+    annotate(x=log(400,base=10),y=1.8,label="120x RNA Length",vjust=2,
+                geom="label")+
+    xlab("Log 10 Distance from Interaction to RNA of RNA Length")
+```
+Excluding MALAT1 and NEAT1 has no effect.
+
 The vast majority of cis significant interactions occur at a distance from the 
 TSS within the length of the RNA. This is interesting as the more distant peak
 in the significant interactions is removed when you control for RNA length.
@@ -175,6 +219,17 @@ non-parametric correlation test on the cis interactions:
 cor.test(res_stretch_cis$bait.length,res_stretch_cis$q.value,
             method = "spearman",exact = F)
 ```
+
+And excluding MALAT1 and NEAT1
+
+```{r}
+#is there a relationship between RNA length and q-value?
+cor.test(res_stretch_cis[!(bait_name %in% c("MALAT1","NEAT1"))]$bait.length,
+          res_stretch_cis[!(bait_name %in% c("MALAT1","NEAT1"))]$q.value,
+          method = "spearman",exact = F)
+```
+
+Excluding MALAT1 and NEAT1 has no effect.
 
 This correlation test actually showed the opposite, an increase in RNA length 
 was related to an increase in adjusted p-value. This proved that the significant
@@ -374,6 +429,137 @@ in the inactive or poised regions of the genome. This may suggest that
 significant interactions may play more of a role in preventing transcription
 (**NB** Need to discuss this further....).
 
+We can rerun this whole analysis excluding MALAT1 and NEAT1 to see if it has any
+effect:
+
+```
+#E025 Adipose Derived Mesenchymal Stem Cell Cultured Cells - hg38
+#from: https://egg2.wustl.edu/roadmap/data/byFileType/chromhmmSegmentations/ChmmModels/coreMarks/jointModel/final/
+#This bed file only contains one metadata column so genomation::readBed will fail
+#Approach below uses code from in this function
+chrHMM_url <- 
+  "https://egg2.wustl.edu/roadmap/data/byFileType/chromhmmSegmentations/ChmmModels/coreMarks/jointModel/final/E025_15_coreMarks_hg38lift_segments.bed.gz"
+file <- genomation:::compressedAndUrl2temp(chrHMM_url)
+#read in as dataframe
+df<-readr::read_delim(file,skip=0,col_names=FALSE, delim="\t")
+names(df) <- c("chr","start","end","ChromHMM") 
+#make GRanges obj
+g = GenomicRanges::makeGRangesFromDataFrame(
+  df, 
+  keep.extra.columns=FALSE, 
+  starts.in.df.are.0based=FALSE,
+  ignore.strand=is.null(NULL))
+col.names1=list(chr=1,start=2,end=3,strand=NULL)
+black.names=c("seqnames", "ranges", "strand", "seqlevels", "seqlengths",
+              "isCircular", "start", "end", "width", "element")
+my.mcols = df[,-unlist(col.names1),drop=FALSE]
+#add meta data column
+GenomicRanges::mcols(g) = my.mcols[, !colnames(my.mcols) %in% black.names]
+#split GRange object by the different names
+chrHMM_list <- GenomicRanges::split(g, g$ChromHMM, drop = TRUE)
+#get state names for IDs
+sort(unique(df$ChromHMM))
+
+setnames(res,c("target.chr","target.start","target.end"),
+         c("chr","start","end"))
+#make GRanges
+gres = GenomicRanges::makeGRangesFromDataFrame(
+  res[!(bait_name %in% c("MALAT1","NEAT1"))], 
+  keep.extra.columns=TRUE, 
+  starts.in.df.are.0based=FALSE,
+  ignore.strand=TRUE)
+#now split based on q-value bins
+gres_list <- GenomicRanges::split(gres, gres$q_bin, drop = TRUE)
+rm(gres)
+#get annotations
+annotation <- 
+  genomation::annotateWithFeatures(gres_list, chrHMM_list)
+```
+```{r,echo=FALSE}
+annotation <- 
+    readRDS("/rds/general/project/neurogenomics-lab/live/Projects/radicl_seq/data/ChromHMM_state_annotation_excl.rds")
+```
+
+Now create the two plots:
+```{r}
+#don't produce heatmap, take matrix, standardise and replot
+annot_mtrx <- genomation::heatTargetAnnotation(annotation,plot=FALSE)
+#change column order
+col.order <- paste0("E",1:15)
+annot_mtrx <- annot_mtrx[,col.order]
+
+#plot raw first
+#convert to df
+annot_df<-reshape2::melt(annot_mtrx)
+names(annot_df) <- c("q-value","State","Overlap")
+#Add better explaining state names
+annot_df <- annot_df%>% 
+    mutate(State_name = as.factor(case_when(
+        .$State == "E1" ~ "1.Active.TSS",
+        .$State == "E2" ~ "2.Flanking.Active.TSS",
+        .$State == "E3" ~ "3.Flanking.Transcribed.State",
+        .$State == "E4" ~ "4.Strong.Transcription",
+        .$State == "E5" ~ "5.Weak.Transcription",
+        .$State == "E6" ~ "6.Genic.Enhancer",
+        .$State == "E7" ~ "7.Enhancer",
+        .$State == "E8" ~ "8.ZNC.Finger.Prot.&.Repeats",
+        .$State == "E9" ~ "9.Heterochromatin",
+        .$State == "E10" ~ "10.Bivalent/Poised.TSS",
+        .$State == "E11" ~ "11.Flanking.Bivalent.TSS",
+        .$State == "E12" ~ "12.Bivalent.Enhancer",
+        .$State == "E13" ~ "13.Repressed.Polycomb",
+        .$State == "E14" ~ "14.Weak.Repressed.Polycomb",
+        .$State == "E15" ~ "15.Quiescent")))
+
+# Reorder factor levels for plot
+annot_df$State_name <- 
+    factor(annot_df$State_name,
+            levels = levels(annot_df$State_name)[c(1,8:15,2:7)])
+ggplot(annot_df,aes(x=State_name,y=`q-value`,fill=Overlap))+
+    geom_tile()+theme_cowplot()+scale_fill_viridis_c()+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+    xlab("ChromHMM State")+
+    ylab("Adj. P-value Bin")
+```
+
+```{r}
+#try standardising across states
+scl_annot_mtrx <- apply(annot_mtrx,2,function(x) scale(x)[,1])
+#plot
+scl_annot_df<-reshape2::melt(scl_annot_mtrx)
+names(scl_annot_df) <- c("q-value","State","Overlap")
+#Add better explaining state names
+scl_annot_df <- scl_annot_df%>% 
+    mutate(State_name = as.factor(case_when(
+        .$State == "E1" ~ "1.Active.TSS",
+        .$State == "E2" ~ "2.Flanking.Active.TSS",
+        .$State == "E3" ~ "3.Flanking.Transcribed.State",
+        .$State == "E4" ~ "4.Strong.Transcription",
+        .$State == "E5" ~ "5.Weak.Transcription",
+        .$State == "E6" ~ "6.Genic.Enhancer",
+        .$State == "E7" ~ "7.Enhancer",
+        .$State == "E8" ~ "8.ZNC.Finger.Prot.&.Repeats",
+        .$State == "E9" ~ "9.Heterochromatin",
+        .$State == "E10" ~ "10.Bivalent/Poised.TSS",
+        .$State == "E11" ~ "11.Flanking.Bivalent.TSS",
+        .$State == "E12" ~ "12.Bivalent.Enhancer",
+        .$State == "E13" ~ "13.Repressed.Polycomb",
+        .$State == "E14" ~ "14.Weak.Repressed.Polycomb",
+        .$State == "E15" ~ "15.Quiescent")))
+# Reorder factor levels for plot
+scl_annot_df$State_name <- 
+    factor(scl_annot_df$State_name,
+           levels = levels(scl_annot_df$State_name)[c(1,8:15,2:7)])
+ggplot(scl_annot_df,aes(x=State_name,y=`q-value`,fill=Overlap))+
+    geom_tile()+theme_cowplot()+scale_fill_viridis_c()+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+    xlab("ChromHMM State")+
+    ylab("Adj. P-value Bin")
+```
+
+Similar results to including MALAT1/NEAT1, perhaps not as strong enrichment of
+repressed/inactive states.
+
 ## Coding Vs Non-coding RNAs
 
 We next wanted to investigate whether different classifications of RNA were 
@@ -389,13 +575,6 @@ res[is.na(distance),interaction:="trans"]
 res[!is.na(distance),interaction:="cis"]
 
 #add in gene type i.e. coding, non-coding
-#get gene names added on to results
-baits <- 
-    fread("/rds/general/project/neurogenomics-lab/live/Projects/radicl_seq/data/all_genes_location.txt",
-            header = FALSE,stringsAsFactors = FALSE)
-colnames(baits) <- c("chr","start","end","bait_name")    
-res[,bait_name := baits$bait_name[match(res$bait.start,baits$start)]]
-
 genes <- unique(res$bait_name)
 mart <- useMart("ENSEMBL_MART_ENSEMBL", host = "useast.ensembl.org")
 mart <- useDataset("hsapiens_gene_ensembl", mart)
@@ -472,6 +651,8 @@ res_biotyp[grepl( "Mt_", gene_biotype),gene_biotype_hl:="Mt_RNA"]
 res_biotyp[gene_biotype=="ribozyme",gene_biotype_hl:=gene_biotype]
 res_biotyp[gene_biotype=="scRNA",gene_biotype_hl:=gene_biotype]
 res_biotyp[grepl( "IG_", gene_biotype),gene_biotype_hl:="IG_gene"]
+#update naming to pcRNA
+res_biotyp[gene_biotype=="protein_coding",gene_biotype:="pcRNA"]
 ```
 
 The first thing we wanted to know was whether there was a difference in the 
@@ -525,6 +706,7 @@ trans interactions, we will only consider cis:
 #finally for cis what is the difference in distance of interaction across
 #diff RNA types
 #Remove IG TR, only 2,3 interactions respectively
+#specify comparisons
 ggplot(res_biotyp[q.value<0.05 & interaction=="cis" & 
                       (!gene_biotype_hl %in% c("IG_gene","TR_gene"))], 
        aes(x=gene_biotype_hl,y=log(distance,base=10),fill=gene_biotype_hl)) +
@@ -534,9 +716,13 @@ ggplot(res_biotyp[q.value<0.05 & interaction=="cis" &
     scale_fill_viridis(discrete=T,alpha=0.5)+
     theme(legend.position="none")+
     ylab("Log 10 Distance from Interaction to RNA")+
-    xlab("Interaction Type")
+    xlab("Interaction Type")+
+    #Wilcoxon test	- t-test (non-parametric)
+    stat_compare_means(label = "p.signif", method = "wilcox.test",
+                       label.y=rep(9.5,3),hide.ns = TRUE,
+                       aes(label = ..p.adj..), #adjust for multiple testing
+                       ref.group=".all.")#Pairwise comparison against all(mean)
 ```
-
 
 No clear relationship but what if, as before, we look at specific types of 
 non-coding RNA
@@ -557,12 +743,157 @@ ggplot(res_biotyp[q.value<0.05 & interaction=="cis" &
     theme(axis.text.x = element_text(angle = 45, hjust = 1),
             legend.position="none")+
     ylab("Log 10 Distance from Interaction to RNA")+
-    xlab("Interaction Type")
+    xlab("Interaction Type")+
+    #Wilcoxon test	- t-test (non-parametric)
+    stat_compare_means(label = "p.signif", method = "wilcox.test",
+                       label.y=rep(9.5,4),hide.ns = TRUE,
+                       aes(label = ..p.adj..), #adjust for multiple testing
+                       ref.group=".all.")#Pairwise comparison against all(mean)
+
+```
+miRNA and snRNA seem to be significantly different to the mean interaction 
+distance, occuring at a lot closer distances.
+
+What if we separate out MALAT1 and NEAT1 since they are involved in so many 
+interactions:
+
+```{r}
+#create separate column for MALAT1, NEAT1, gene biotype
+res_biotyp[,gene_biotype_excl:=gene_biotype]
+res_biotyp[bait_name=="MALAT1",gene_biotype_excl:=bait_name]
+res_biotyp[bait_name=="NEAT1",gene_biotype_excl:=bait_name]
+#snoRNA,misc_RNA removed too low cases - 2,3
+#removed pseudogene RNAs too to compare coding and non-coding directly
+ggplot(res_biotyp[q.value<0.05 & interaction=="cis" & 
+                      (!gene_biotype_hl %in% c("IG_gene","TR_gene",
+                                                "pseudogene")) &
+                      (!gene_biotype %in% 
+                           c("snoRNA","misc_RNA"))], 
+       aes(x=gene_biotype_excl,y=log(distance,base=10),fill=gene_biotype_excl))+
+    geom_violin(trim=FALSE)+
+    geom_boxplot(width=0.1)+
+    theme_cowplot()+
+    scale_fill_viridis(discrete=T,alpha=0.5)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position="none")+
+    ylab("Log 10 Distance from Interaction to RNA")+
+    xlab("Interaction Type")+
+    #Wilcoxon test	- t-test (non-parametric)
+    stat_compare_means(label = "p.signif", method = "wilcox.test",
+                       label.y=rep(9.5,3),hide.ns = TRUE,
+                       aes(label = ..p.adj..), #adjust for multiple testing
+                       ref.group=".all.")#Pairwise comparison against all(mean)
 
 ```
 
-There appears to be no discernible difference in the distance of the cis 
-interactions across RNA types.
+MALAT1 and NEAT1 seem to only interact at long distances from where they are 
+transcribed.
+
+What if we look at these distances normalised to the RNA length:
+
+
+```{r}
+res_biotyp[,bait.length:=bait.end-bait.start]
+res_biotyp[,stnd_dist:=distance/bait.length]
+
+ggplot(res_biotyp[q.value<0.05 & interaction=="cis" & 
+                      (!gene_biotype_hl %in% c("IG_gene","TR_gene"))], 
+       aes(x=gene_biotype_hl,y=log(stnd_dist,base=10),fill=gene_biotype_hl)) +
+    geom_violin(trim=FALSE)+
+    geom_boxplot(width=0.1)+
+    theme_cowplot()+
+    scale_fill_viridis(discrete=T,alpha=0.5)+
+    theme(legend.position="none")+
+    ylab("Log 10 Distance from Interaction to RNA")+
+    xlab("Interaction Type")+
+    #Wilcoxon test	- t-test (non-parametric)
+    stat_compare_means(label = "p.signif", method = "wilcox.test",
+                       label.y=rep(9.5,3),hide.ns = TRUE,
+                       aes(label = ..p.adj..), #adjust for multiple testing
+                       ref.group=".all.")#Pairwise comparison against all(mean)
+```
+
+Clear difference across the types, let's look at specific types of non-coding RNA:
+
+```{r}
+#snoRNA,misc_RNA removed too low cases - 2,3
+#removed pseudogene RNAs too to compare coding and non-coding directly
+ggplot(res_biotyp[q.value<0.05 & interaction=="cis" & 
+                      (!gene_biotype_hl %in% c("IG_gene","TR_gene",
+                                                "pseudogene")) &
+                      (!gene_biotype %in% 
+                           c("snoRNA","misc_RNA"))], 
+       aes(x=gene_biotype,y=log(stnd_dist,base=10),fill=gene_biotype)) +
+    geom_violin(trim=FALSE)+
+    geom_boxplot(width=0.1)+
+    theme_cowplot()+
+    scale_fill_viridis(discrete=T,alpha=0.5)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position="none")+
+    ylab("Log 10 Distance from Interaction to RNA")+
+    xlab("Interaction Type")+
+    #Wilcoxon test	- t-test (non-parametric)
+    stat_compare_means(label = "p.signif", method = "wilcox.test",
+                       label.y=rep(7,4),hide.ns = TRUE,
+                       aes(label = ..p.adj..), #adjust for multiple testing
+                       ref.group=".all.")#Pairwise comparison against all(mean)
+
+```
+Relative to their length, miRNA and snRNA seem to interact at a lot further distances.
+
+What if we separate out MALAT1 and NEAT1 since they are involved in so many 
+interactions:
+
+```{r}
+#snoRNA,misc_RNA removed too low cases - 2,3
+#removed pseudogene RNAs too to compare coding and non-coding directly
+ggplot(res_biotyp[q.value<0.05 & interaction=="cis" & 
+                      (!gene_biotype_hl %in% c("IG_gene","TR_gene",
+                                                "pseudogene")) &
+                      (!gene_biotype %in% 
+                           c("snoRNA","misc_RNA"))], 
+       aes(x=gene_biotype_excl,y=log(stnd_dist,base=10),fill=gene_biotype_excl))+
+    geom_violin(trim=FALSE)+
+    geom_boxplot(width=0.1)+
+    theme_cowplot()+
+    scale_fill_viridis(discrete=T,alpha=0.5)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position="none")+
+    ylab("Log 10 Distance from Interaction to RNA")+
+    xlab("Interaction Type")+
+    #Wilcoxon test	- t-test (non-parametric)
+    stat_compare_means(label = "p.signif", method = "wilcox.test",
+                       label.y=rep(7,3),hide.ns = TRUE,
+                       aes(label = ..p.adj..), #adjust for multiple testing
+                       ref.group=".all.")#Pairwise comparison against all(mean)
+
+```
+
+MALAT1 and NEAT1 interact at similar distances to miRNA and snRNA. The lncRNA 
+and protein coding RNA appear to interact at similar distances but if we look at
+there in isolation and perform a non-parametric t-test between them, does this 
+hold?
+
+```{r}
+#leave just lncRNA and pcRNA - exclude MALAT1 and NEAT1
+ggplot(res_biotyp[q.value<0.05 & interaction=="cis" & 
+                      gene_biotype_excl %in% c("lncRNA","pcRNA")], 
+       aes(x=gene_biotype_excl,y=log(stnd_dist,base=10),fill=gene_biotype_excl))+
+    geom_violin(trim=FALSE)+
+    geom_boxplot(width=0.1)+
+    theme_cowplot()+
+    scale_fill_viridis(discrete=T,alpha=0.5)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position="none")+
+    ylab("Log 10 Distance from Interaction to RNA")+
+    xlab("Interaction Type")+
+    #Wilcoxon test	- t-test (non-parametric)
+    stat_compare_means(label = "p.signif", method = "wilcox.test",
+                       label.y=rep(5,2),hide.ns = TRUE,
+                       aes(label = ..p.adj..), #adjust for multiple testing
+                       ref.group="pcRNA")#Pairwise comparison against all(mean)
+
+```
 
 We can look into these differences further but first, let's consider the 
 differences between significant cis and trans interactions. There are
@@ -638,5 +969,124 @@ ggplot(res_counts_excl, aes(x=gene_biotype,y=prop,fill=gene_biotype)) +
 
 Again the proportions appear identical when MALAT1 and NEAT1 are excluded.
 
-*TO DO* - Next I'd ideally like to annotate the DNA these RNA Bind to 
-(similar to ChromHMM but giving......)
+
+## ChromHMM & Coding, Non-coding
+
+Let's look at the significant coding non-coding groups of RNA fromt he last 
+violin plot across the different ChromHMM states to see if there is any 
+difference in where they interact.
+
+First, derive annotation data:
+
+```
+#E025 Adipose Derived Mesenchymal Stem Cell Cultured Cells - hg38
+#from: https://egg2.wustl.edu/roadmap/data/byFileType/chromhmmSegmentations/ChmmModels/coreMarks/jointModel/final/
+#This bed file only contains one metadata column so genomation::readBed will fail
+#Approach below uses code from in this function
+chrHMM_url <- 
+  "https://egg2.wustl.edu/roadmap/data/byFileType/chromhmmSegmentations/ChmmModels/coreMarks/jointModel/final/E025_15_coreMarks_hg38lift_segments.bed.gz"
+file <- genomation:::compressedAndUrl2temp(chrHMM_url)
+#read in as dataframe
+df<-readr::read_delim(file,skip=0,col_names=FALSE, delim="\t")
+names(df) <- c("chr","start","end","ChromHMM") 
+#make GRanges obj
+g = GenomicRanges::makeGRangesFromDataFrame(
+  df, 
+  keep.extra.columns=FALSE, 
+  starts.in.df.are.0based=FALSE,
+  ignore.strand=is.null(NULL))
+col.names1=list(chr=1,start=2,end=3,strand=NULL)
+black.names=c("seqnames", "ranges", "strand", "seqlevels", "seqlengths",
+              "isCircular", "start", "end", "width", "element")
+my.mcols = df[,-unlist(col.names1),drop=FALSE]
+#add meta data column
+GenomicRanges::mcols(g) = my.mcols[, !colnames(my.mcols) %in% black.names]
+#split GRange object by the different names
+chrHMM_list <- GenomicRanges::split(g, g$ChromHMM, drop = TRUE)
+#get state names for IDs
+sort(unique(df$ChromHMM))
+
+#set up results with coding non-coding info
+#RNA types with less than 10 interactions removed
+res_biotyp[q.value<0.05,.N,by=gene_biotype_excl][N<=10]$gene_biotype_excl
+#[1] "unitary_pseudogene"     "IG_V_pseudogene"        "polymorphic_pseudogene" "misc_RNA"              
+#[5] "rRNA_pseudogene"        "snoRNA"                 "TR_J_gene"              "TR_V_gene"
+#removed pseudogene RNAs too to compare coding and non-coding directly
+sig_res_rna_typ <-
+  res_biotyp[q.value<0.05 & 
+               !(gene_biotype_excl %in% c("unitary_pseudogene",
+                                            "IG_V_pseudogene",
+                                            "polymorphic_pseudogene","misc_RNA",
+                                            "rRNA_pseudogene","snoRNA",
+                                            "TR_J_gene","TR_V_gene"))]
+setnames(sig_res_rna_typ,c("target.chr","target.start","target.end"),
+         c("chr","start","end"))
+#make GRanges
+gres = GenomicRanges::makeGRangesFromDataFrame(
+  sig_res_rna_typ, 
+  keep.extra.columns=TRUE, 
+  starts.in.df.are.0based=FALSE,
+  ignore.strand=TRUE)
+#now split based on q-value bins
+gres_list <- GenomicRanges::split(gres, gres$gene_biotype_excl, drop = TRUE)
+rm(gres)
+#get annotations
+annotation <- 
+  genomation::annotateWithFeatures(gres_list, chrHMM_list)
+```
+```{r,echo=FALSE}
+annotation <- 
+    readRDS("/rds/general/project/neurogenomics-lab/live/Projects/radicl_seq/data/ChromHMM_state_annotation_coding_noncoding.rds")
+```
+
+Now create the plot:
+```{r}
+#don't produce heatmap, take matrix, standardise and replot
+annot_mtrx <- genomation::heatTargetAnnotation(annotation,plot=FALSE)
+#change column order
+col.order <- paste0("E",1:15)
+annot_mtrx <- annot_mtrx[,col.order]
+
+#plot raw first
+#convert to df
+annot_df<-reshape2::melt(annot_mtrx)
+names(annot_df) <- c("RNA Type","State","Overlap")
+#Add better explaining state names
+annot_df <- annot_df%>% 
+    mutate(State_name = as.factor(case_when(
+        .$State == "E1" ~ "1.Active.TSS",
+        .$State == "E2" ~ "2.Flanking.Active.TSS",
+        .$State == "E3" ~ "3.Flanking.Transcribed.State",
+        .$State == "E4" ~ "4.Strong.Transcription",
+        .$State == "E5" ~ "5.Weak.Transcription",
+        .$State == "E6" ~ "6.Genic.Enhancer",
+        .$State == "E7" ~ "7.Enhancer",
+        .$State == "E8" ~ "8.ZNC.Finger.Prot.&.Repeats",
+        .$State == "E9" ~ "9.Heterochromatin",
+        .$State == "E10" ~ "10.Bivalent/Poised.TSS",
+        .$State == "E11" ~ "11.Flanking.Bivalent.TSS",
+        .$State == "E12" ~ "12.Bivalent.Enhancer",
+        .$State == "E13" ~ "13.Repressed.Polycomb",
+        .$State == "E14" ~ "14.Weak.Repressed.Polycomb",
+        .$State == "E15" ~ "15.Quiescent")))
+
+# Reorder factor levels for plot
+annot_df$State_name <- 
+    factor(annot_df$State_name,
+            levels = levels(annot_df$State_name)[c(1,8:15,2:7)])
+ggplot(annot_df,aes(x=State_name,y=`RNA Type`,fill=Overlap))+
+    geom_tile()+theme_cowplot()+scale_fill_viridis_c()+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+    xlab("ChromHMM State")+
+    ylab("RNA Type")
+```
+
+All more generally bind in the active states (1-7) with the most prevalent 
+overlap in the state 1: Active TSS. More thoughts:
+
+* Interesting NEAT1 and MALAT1 don't bind to flanking transcribed state at all 
+while all others do.
+* Pseudogenes seem to bind less frequently in states 2-7 than ncRNA and pcRNA.
+* The pcRNA and ncRNA seem to have significant overlap with the quiescent state 
+that isn't present in the other inactive stages (8-14) or in the pseudogenes.
+
