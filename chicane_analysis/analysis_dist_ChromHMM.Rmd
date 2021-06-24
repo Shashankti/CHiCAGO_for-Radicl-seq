@@ -37,6 +37,7 @@ library(dplyr)
 library(genomation)
 library(biomaRt)
 library(ggpubr)
+library(annotatr)
 ```
 
 ## Chicane Results & Preprocessing
@@ -1089,7 +1090,7 @@ gres = GenomicRanges::makeGRangesFromDataFrame(
   keep.extra.columns=TRUE, 
   starts.in.df.are.0based=FALSE,
   ignore.strand=TRUE)
-#now split based on q-value bins
+#now split based on RNA Type
 gres_list <- GenomicRanges::split(gres, gres$gene_biotype_excl, drop = TRUE)
 rm(gres)
 #get annotations
@@ -1205,4 +1206,115 @@ ggplot(annot_df_sig,aes(x=State_name,y=`RNA Type`,fill=Overlap))+
   ylab("RNA Type") +
   theme(plot.tag.position = c(.88, 0.42),
           plot.tag = element_text(colour="#ff0000",size=10))
+```
+
+
+## RNA Base-Pair Position Classification
+
+We wanted to investigate the different genomic ranges the RNA originated from. 
+Are these exonic, intronic or UTR? The idea being that this could highlight 
+differences between pcRNAs and ncRNAs like lncRNAs.
+
+```{r}
+# Select annotations for intersection with regions
+# Note we are using hg38 to match the data
+# Note inclusion of custom annotation, and use of shortcuts
+annots = c("hg38_basicgenes")
+#hg19_basicgenes
+
+# Build the annotations (a single GRanges object)
+annotations = annotatr::build_annotations(genome = 'hg38', annotations = annots)
+
+#set up results with coding non-coding info
+#RNA types with less than 10 interactions removed
+res_biotyp[q.value<0.05,.N,by=gene_biotype_excl][N<=10]$gene_biotype_excl
+#[1] "IG_gene" "misc_RNA" "snoRNA" "TR_J_gene"  "TR_V_gene"
+#removed pseudogene RNAs too to compare coding and non-coding directly
+sig_res_rna_typ <-
+  res_biotyp[q.value<0.05 & 
+               !(gene_biotype_excl %in% c("IG_gene","misc_RNA","snoRNA",
+                                          "TR_J_gene","TR_V_gene"))]
+#set names of RNA this time!!
+setnames(sig_res_rna_typ,c("bait.chr","bait.start","bait.end"),
+         c("chr","start","end"))
+#make GRanges
+gres = GenomicRanges::makeGRangesFromDataFrame(
+  sig_res_rna_typ, 
+  keep.extra.columns=TRUE, 
+  starts.in.df.are.0based=FALSE,
+  ignore.strand=TRUE)
+
+# Intersect the regions we read in with the annotations
+dm_annotated = annotatr::annotate_regions(
+  regions = gres,
+  annotations = annotations,
+  ignore.strand = TRUE,
+  quiet = FALSE)
+# A GRanges object is returned - Coerce to a data.table
+dt_dm_annotated = as.data.table(data.frame(dm_annotated))
+#drop prefix from column: "hg38_genes_"
+dt_dm_annotated[,annot.type.nice:=substr(annot.type,12,nchar(annot.type))]
+```
+
+Now we can inspect the relationship between RNA type and where it originated 
+from:
+
+```{r}
+#get counts and proportions
+annot_counts <- dt_dm_annotated[,.N,by=.(interaction,gene_biotype_excl,
+                                          annot.type.nice)]
+annot_counts[,all_N:=sum(N),by=interaction]
+annot_counts[,prop:=(N/all_N)]
+ggplot(annot_counts, aes(x=gene_biotype_excl,y=prop,fill=annot.type.nice)) +
+  geom_bar(stat="identity",position="dodge")+ #dodge stops stacked
+  facet_wrap(~interaction,scales="free_x")+
+  theme_cowplot()+
+  scale_fill_viridis(discrete=T,name="RNA Origin")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  xlab("RNA types")+
+  ylab("Proportion of significant cis/trans interactions")
+```
+
+The relationship of each RNA to their origin across cis and trans interactions 
+is more clear if we look at the proportion of each rather than total:
+
+```{r}
+annot_counts[,all_N_RNA:=sum(N),by=.(interaction,gene_biotype_excl)]
+annot_counts[,prop_RNA:=(N/all_N_RNA)]
+
+ggplot(annot_counts, aes(x=gene_biotype_excl,y=prop_RNA,fill=annot.type.nice))+
+  geom_bar(stat="identity",position="dodge")+ #dodge stops stacked
+  facet_wrap(~interaction,scales="free_x")+
+  theme_cowplot()+
+  scale_fill_viridis(discrete=T,name="RNA Origin")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  xlab("RNA types")+
+  ylab("Proportion of RNA Type")
+```
+
+There seems to be no proportional differences between cis and trans so we can 
+just look at the overall proportions for a more interpretable picture:
+
+```{r}
+annot_counts_bth <- dt_dm_annotated[,.N,by=.(gene_biotype_excl,annot.type.nice)]
+annot_counts_bth[,all_N_RNA:=sum(N),by=.(gene_biotype_excl)]
+annot_counts_bth[,prop_RNA:=(N/all_N_RNA)]
+
+ggplot(annot_counts, aes(x=gene_biotype_excl,y=prop_RNA,fill=annot.type.nice))+
+  geom_bar(stat="identity",position="dodge")+ #dodge stops stacked
+  theme_cowplot()+
+  scale_fill_viridis(discrete=T,name="RNA Origin")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  xlab("RNA types")+
+  ylab("Proportion of RNA Type")
+```
+
+So it appears exons are the most common group in the RNA with the largest 
+numbers (lncRNA, MALAT1, NEAT1, pcRNA, pseudogene). It is interesting that there
+is little difference in the proportions for lncRNAs, pcRNAs and pseudogenes. 
+snRNAs and miRNAs are striking different but it is worth reminding there are 
+comparatively low numbers of interactions in these types:
+
+```{r}
+print(annot_counts_bth[,sum(N),by=gene_biotype_excl])
 ```
