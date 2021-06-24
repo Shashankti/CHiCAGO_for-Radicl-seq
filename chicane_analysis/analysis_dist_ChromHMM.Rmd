@@ -1179,5 +1179,30 @@ So there is a relationship between RNA type and ChromHMM state. Let's look at
 the significance of specific interactions:
 
 ```{r}
+#change z-scores to p-values - https://www.biostars.org/p/17227/
+#2 sided test
+pvalue2sided <- function(z){2*pnorm(-abs(z))}
+chisq_pvals <- apply(chisq$stdres,1:2,pvalue2sided)
 
+#if we were to check all cells
+p.val <- 0.05
+adj.p.val <- p.val/(ncol(chisq$stdres)*nrow(chisq$stdres))
+
+chisq_sig <- reshape2::melt(chisq_pvals<adj.p.val)
+names(chisq_sig) <- c("RNA Type","State_name","signif")
+
+#add significance column to other data
+annot_df_sig <- merge(annot_df,chisq_sig,by=c("RNA Type","State_name"))
+#add text significance to be displayed in heat map
+annot_df_sig$signif_txt <- ifelse(annot_df_sig$signif,"*","")
+#plot with overlap value displayed in cell and coloured by significance
+ggplot(annot_df_sig,aes(x=State_name,y=`RNA Type`,fill=Overlap))+
+  geom_tile()+geom_text(label=annot_df_sig$signif_txt,colour="#ff0000",size=8)+
+  labs(tag = "* - significant\nadjusted\np-value") +
+  theme_cowplot()+scale_fill_viridis_c()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  xlab("ChromHMM State")+
+  ylab("RNA Type") +
+  theme(plot.tag.position = c(.88, 0.42),
+          plot.tag = element_text(colour="#ff0000",size=10))
 ```
