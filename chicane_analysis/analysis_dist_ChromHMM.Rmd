@@ -1312,7 +1312,9 @@ ggplot(annot_counts, aes(x=gene_biotype_excl,y=prop_RNA,fill=annot.type.nice))+
 So it appears exons are the most common group in the RNA with the largest 
 numbers (lncRNA, MALAT1, NEAT1, pcRNA, pseudogene). It is interesting that there
 is little difference in the proportions for lncRNAs, pcRNAs and pseudogenes. 
-snRNAs and miRNAs are striking different but it is worth reminding there are 
+Both MALAT1 and NEAT1 are noticably different however, originating from 
+proportionally less intronic positions and more 1 to 5kb and promotoer regions.
+snRNAs and miRNAs are striking different too but it is worth reminding there are 
 comparatively low numbers of interactions in these types:
 
 ```{r}
