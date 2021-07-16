@@ -54,6 +54,12 @@ a file containing the whole genome segmented into random parts excluding the RNA
 baits and then adding on all RNA baits to the file. This file is used as the 
 fragment parameter in chicane.
 
+* **gen_frag_baits_wo_overlap.R** - script used to generate the input files which do not have
+overlapping regions. Used for running chicane_wo_overlap.R.
+
+* **running_chicane_wo_overlap.R** -script used to run chicane with input files which have
+overlapping regrions removed from them.
+
 * **running_chicane.R** - script used to complete chicane interaction calling for 
 the three analysis types.
 
