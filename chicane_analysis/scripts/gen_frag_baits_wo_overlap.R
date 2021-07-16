@@ -104,7 +104,9 @@ fwrite(baits,file = "Data/Processed/graphs/wo_overlap_baits.bed",sep="\t",col.na
 
 #Third, as suggested by Dr. Syed we use the fragments file which is the entire genome split into 2kb bins. The file could be found on the drive.
 # We first use the baits file which has overlapping regions to generate this file
-binned_frag <- fread(file)
+binned_frag <- fread("Data/Processed/graphs/20kb_bins.bed")
+binned_frag <- binned_frag[!binned_frag$V1 %in% c("chrX","chrY")]
+colnames(binned_frag) <- c("chr","start","end")
 binned_res <- makeGRangesFromDataFrame(binned_frag)
 #finding overlaps and creating the set difference
 ov <- findOverlaps(binned_res,bres)
