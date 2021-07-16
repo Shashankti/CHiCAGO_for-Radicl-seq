@@ -27,18 +27,21 @@ chicane.results.wo.baits <- chicane(
 fwrite(chicane.results.wo.baits,file = "Data/Processed/graphs/chicane.results.wo.baits.txt")
 
 #Running chicane by usung the fragments file as a bins of 2kb for the enitre genome. The baits file contains overlapping region
-#The overlap between the baits and the fragments is removed
-chicane.results.binned <- chicane{
+#The overlap between the baits and the fragments is removedchicane.results.binned <- chicane(
   bam = "Data/Processed/D13.bam",
   baits = "Data/Processed/graphs/chic_wo_baits.bed",
-  fragments = "Data/Processed/graphs/binned.bed",
+  fragments = "Data/Processed/graphs/frags_binned_with_bait_overlap.bed",
   cores=7
- }
- 
+)
+fwrite(chicane.results.binned,file="Data/Processed/graphs/chicane.resuls.binned.txt")
+rm(chicane.results.binned)
+gc()
 #Runing chicace with binned fragment file and baits without overlaps,
-chicane.results.bonned.wo <- chicane{
+chicane.results.binned.wo <- chicane(
   bam = "Data/Processed/D13.bam",
   baits = "Data/Processed/graphs/wo_overlap_baits.bed",
-  fragments = "Data/Processed/graphs/binned_wo_bait_overlap.bed",
+  fragments = "Data/Processed/graphs/frags_binned_wo_bait_overlap.bed",
   cores = 7
 )
+fwrite(chicane.results.binned.wo,file = "Data/Processed/graphs/chicane.results.binned.wo.baits.txt")
+
