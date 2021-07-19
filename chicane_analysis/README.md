@@ -45,6 +45,13 @@ interactions.
 ## scripts
 R scripts used to run the analysis:
 
+* **remove_overlapping_regions_rnas.R** - script and function to remove overlapping 
+regions from RNA. Note this will remove from the end of the RNA pair in question so 
+the transcriptional start site of the other RNA remains intact. Note this will also 
+remove the RNA which are completely encompassed by another RNA. This function is 
+useful for RADICL-Seq data when using CHICANE to analysis results: RNA are the baits 
+file.
+
 * **generate_frag_bed_file.R** - script to produce frags.bed, a file containing 
 the whole genome segmented into random parts. This file is used as the fragment 
 parameter in chicane.
