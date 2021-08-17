@@ -38,6 +38,9 @@ library(genomation)
 library(biomaRt)
 library(annotatr)
 library(GenomicRanges)
+#library(ggpubr)
+
+
 ```
 
 ## Chicane Results & Preprocessing
@@ -67,6 +70,7 @@ baits <-
             header = FALSE,stringsAsFactors = FALSE)
 colnames(baits) <- c("chr","start","end","bait_name")    
 res[,bait_name := baits$bait_name[match(res$bait.start,baits$start)]]
+
 ```
 
 ## Relationship between significant results and RNA length
@@ -656,6 +660,10 @@ GenomicRanges::mcols(g) = my.mcols[, !colnames(my.mcols) %in% black.names]
 chrHMM_list <- GenomicRanges::split(g, g$ChromHMM, drop = TRUE)
 #get state names for IDs
 sort(unique(df$ChromHMM))
+<<<<<<< HEAD
+=======
+
+>>>>>>> cdb806a1a971dc262447f0fd225b6f69dc73e46a
 setnames(res,c("target.chr","target.start","target.end"),
          c("chr","start","end"))
 #make GRanges
@@ -683,6 +691,10 @@ annot_mtrx <- genomation::heatTargetAnnotation(annotation,plot=FALSE)
 #change column order
 col.order <- paste0("E",1:15)
 annot_mtrx <- annot_mtrx[,col.order]
+<<<<<<< HEAD
+=======
+
+>>>>>>> cdb806a1a971dc262447f0fd225b6f69dc73e46a
 #plot raw first
 #convert to df
 annot_df<-reshape2::melt(annot_mtrx)
@@ -705,6 +717,10 @@ annot_df <- annot_df%>%
         .$State == "E13" ~ "13.Repressed.Polycomb",
         .$State == "E14" ~ "14.Weak.Repressed.Polycomb",
         .$State == "E15" ~ "15.Quiescent")))
+<<<<<<< HEAD
+=======
+
+>>>>>>> cdb806a1a971dc262447f0fd225b6f69dc73e46a
 # Reorder factor levels for plot
 annot_df$State_name <- 
     factor(annot_df$State_name,
@@ -844,6 +860,7 @@ res_biotyp[gene_biotype=="scRNA",gene_biotype_hl:=gene_biotype]
 res_biotyp[grepl( "IG_", gene_biotype),gene_biotype_hl:="IG_gene"]
 #update naming to pcRNA
 res_biotyp[gene_biotype=="protein_coding",gene_biotype:="pcRNA"]
+<<<<<<< HEAD
 ```
 
 Before we look at any in depth questions, what is the breakdown of our 
@@ -876,6 +893,40 @@ ggplot(res_biotyp[q.value<0.05 & !(bait_name %in%
     ylab("Number of significant interactions")
 ```
 
+=======
+```
+
+Before we look at any in depth questions, what is the breakdown of our 
+significant interactions by RNA type?
+
+```{r}
+ggplot(res_biotyp[q.value<0.05,],
+        aes(x=gene_biotype_hl,fill=gene_biotype_hl)) +
+    geom_bar()+
+    theme_cowplot()+
+    scale_fill_viridis(discrete=T)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position="none")+
+    xlab("")+
+    ylab("Number of significant interactions")
+```
+
+And if we exclude MALAT1 and NEAT1
+
+```{r}
+ggplot(res_biotyp[q.value<0.05 & !(bait_name %in% 
+                                                  c("MALAT1","NEAT1")),],
+        aes(x=gene_biotype_hl,fill=gene_biotype_hl)) +
+    geom_bar()+
+    theme_cowplot()+
+    scale_fill_viridis(discrete=T)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position="none")+
+    xlab("Excluding MALAT1 & NEAT1")+
+    ylab("Number of significant interactions")
+```
+
+>>>>>>> cdb806a1a971dc262447f0fd225b6f69dc73e46a
 So excluding MALAT1 and NEAT1 most significant interactions are by 
 protein-coding RNA.
 
@@ -940,12 +991,21 @@ ggplot(res_biotyp[q.value<0.05 & interaction=="cis" &
     scale_fill_viridis(discrete=T,alpha=0.5)+
     theme(legend.position="none")+
     ylab("Log 10 Distance from Interaction to RNA")+
+<<<<<<< HEAD
     xlab("Interaction Type")#+
     #Wilcoxon test	- t-test (non-parametric)
     #stat_compare_means(label = "p.signif", method = "wilcox.test",
     #                   label.y=rep(9.5,3),hide.ns = TRUE,
     #                   aes(label = ..p.adj..), #adjust for multiple testing
     #                   ref.group=".all.")#Pairwise comparison against all(mean)
+=======
+    xlab("Interaction Type")+
+    #Wilcoxon test	- t-test (non-parametric)
+    stat_compare_means(label = "p.signif", method = "wilcox.test",
+                       label.y=rep(9.5,3),hide.ns = TRUE,
+                       aes(label = ..p.adj..), #adjust for multiple testing
+                       ref.group=".all.")#Pairwise comparison against all(mean)
+>>>>>>> cdb806a1a971dc262447f0fd225b6f69dc73e46a
 ```
 
 No clear relationship but what if, as before, we look at specific types of 
@@ -967,6 +1027,7 @@ ggplot(res_biotyp[q.value<0.05 & interaction=="cis" &
     theme(axis.text.x = element_text(angle = 45, hjust = 1),
             legend.position="none")+
     ylab("Log 10 Distance from Interaction to RNA")+
+<<<<<<< HEAD
     xlab("Interaction Type")#+
     #Wilcoxon test	- t-test (non-parametric)
     #stat_compare_means(label = "p.signif", method = "wilcox.test",
@@ -1096,6 +1157,14 @@ Relative to their length, miRNA and snRNA seem to interact at a lot further dist
 
 What if we separate out MALAT1 and NEAT1 since they are involved in so many 
 interactions:
+=======
+    xlab("Interaction Type")+
+    #Wilcoxon test	- t-test (non-parametric)
+    stat_compare_means(label = "p.signif", method = "wilcox.test",
+                       label.y=rep(9.5,4),hide.ns = TRUE,
+                       aes(label = ..p.adj..), #adjust for multiple testing
+                       ref.group=".all.")#Pairwise comparison against all(mean)
+>>>>>>> cdb806a1a971dc262447f0fd225b6f69dc73e46a
 
 ```{r}
 #snoRNA,misc_RNA removed too low cases - 2,3
@@ -1169,9 +1238,215 @@ ggplot(res_meta,
   ylab("Number of Interactions per RNA")+
   xlab("Interaction Type")
 ```
+miRNA and snRNA seem to be significantly different to the mean interaction 
+distance, occuring at a lot closer distances.
+
+<<<<<<< HEAD
+Roughly the same number of interactions per RNA for trans and cis interactions.
+
+=======
+What if we separate out MALAT1 and NEAT1 since they are involved in so many 
+interactions:
+
+```{r}
+#create separate column for MALAT1, NEAT1, gene biotype
+res_biotyp[,gene_biotype_excl:=gene_biotype]
+#combine all pseudogenes - low numbers
+res_biotyp[gene_biotype_hl=="pseudogene",gene_biotype_excl:=gene_biotype_hl]
+res_biotyp[gene_biotype_hl=="IG_gene",gene_biotype_excl:=gene_biotype_hl]
+res_biotyp[bait_name=="MALAT1",gene_biotype_excl:=bait_name]
+res_biotyp[bait_name=="NEAT1",gene_biotype_excl:=bait_name]
+#snoRNA,misc_RNA removed too low cases - 2,3
+#removed pseudogene RNAs too to compare coding and non-coding directly
+ggplot(res_biotyp[q.value<0.05 & interaction=="cis" & 
+                      (!gene_biotype_hl %in% c("IG_gene","TR_gene",
+                                                "pseudogene")) &
+                      (!gene_biotype %in% 
+                           c("snoRNA","misc_RNA"))], 
+       aes(x=gene_biotype_excl,y=log(distance,base=10),fill=gene_biotype_excl))+
+    geom_violin(trim=FALSE)+
+    geom_boxplot(width=0.1)+
+    theme_cowplot()+
+    scale_fill_viridis(discrete=T,alpha=0.5)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position="none")+
+    ylab("Log 10 Distance from Interaction to RNA")+
+    xlab("Interaction Type")+
+    #Wilcoxon test	- t-test (non-parametric)
+    stat_compare_means(label = "p.signif", method = "wilcox.test",
+                       label.y=rep(9.5,3),hide.ns = TRUE,
+                       aes(label = ..p.adj..), #adjust for multiple testing
+                       ref.group=".all.")#Pairwise comparison against all(mean)
+
+```
+
+MALAT1 and NEAT1 seem to only interact at long distances from where they are 
+transcribed.
+
+Now we have this lower level of RNA states we can also view the number of 
+significant interactions for each:
+
+```{r}
+ggplot(res_biotyp[q.value<0.05,],
+        aes(x=gene_biotype_excl,fill=gene_biotype_excl)) +
+    geom_bar()+
+    theme_cowplot()+
+    scale_fill_viridis(discrete=T)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position="none")+
+    xlab("")+
+    ylab("Number of significant interactions")
+```
+
+And without MALAT1 and NEAT1:
+
+```{r}
+ggplot(res_biotyp[q.value<0.05 & !(bait_name %in% 
+                                                  c("MALAT1","NEAT1")),],
+        aes(x=gene_biotype_excl,fill=gene_biotype_excl)) +
+    geom_bar()+
+    theme_cowplot()+
+    scale_fill_viridis(discrete=T)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position="none")+
+    xlab("")+
+    ylab("Number of significant interactions")
+```
+
+What if we look at these distances normalised to the RNA length:
+
+
+```{r}
+res_biotyp[,bait.length:=bait.end-bait.start]
+res_biotyp[,stnd_dist:=distance/bait.length]
+
+ggplot(res_biotyp[q.value<0.05 & interaction=="cis" & 
+                      (!gene_biotype_hl %in% c("IG_gene","TR_gene"))], 
+       aes(x=gene_biotype_hl,y=log(stnd_dist,base=10),fill=gene_biotype_hl)) +
+    geom_violin(trim=FALSE)+
+    geom_boxplot(width=0.1)+
+    theme_cowplot()+
+    scale_fill_viridis(discrete=T,alpha=0.5)+
+    theme(legend.position="none")+
+    ylab("Log 10 Distance from Interaction to RNA")+
+    xlab("Interaction Type")+
+    #Wilcoxon test	- t-test (non-parametric)
+    stat_compare_means(label = "p.signif", method = "wilcox.test",
+                       label.y=rep(9.5,3),hide.ns = TRUE,
+                       aes(label = ..p.adj..), #adjust for multiple testing
+                       ref.group=".all.")#Pairwise comparison against all(mean)
+```
+
+Clear difference across the types, let's look at specific types of non-coding RNA:
+
+```{r}
+#snoRNA,misc_RNA removed too low cases - 2,3
+#removed pseudogene RNAs too to compare coding and non-coding directly
+ggplot(res_biotyp[q.value<0.05 & interaction=="cis" & 
+                      (!gene_biotype_hl %in% c("IG_gene","TR_gene",
+                                                "pseudogene")) &
+                      (!gene_biotype %in% 
+                           c("snoRNA","misc_RNA"))], 
+       aes(x=gene_biotype,y=log(stnd_dist,base=10),fill=gene_biotype)) +
+    geom_violin(trim=FALSE)+
+    geom_boxplot(width=0.1)+
+    theme_cowplot()+
+    scale_fill_viridis(discrete=T,alpha=0.5)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position="none")+
+    ylab("Log 10 Distance from Interaction to RNA")+
+    xlab("Interaction Type")+
+    #Wilcoxon test	- t-test (non-parametric)
+    stat_compare_means(label = "p.signif", method = "wilcox.test",
+                       label.y=rep(7,4),hide.ns = TRUE,
+                       aes(label = ..p.adj..), #adjust for multiple testing
+                       ref.group=".all.")#Pairwise comparison against all(mean)
+
+```
+Relative to their length, miRNA and snRNA seem to interact at a lot further distances.
+
+What if we separate out MALAT1 and NEAT1 since they are involved in so many 
+interactions:
+
+```{r}
+#snoRNA,misc_RNA removed too low cases - 2,3
+#removed pseudogene RNAs too to compare coding and non-coding directly
+ggplot(res_biotyp[q.value<0.05 & interaction=="cis" & 
+                      (!gene_biotype_hl %in% c("IG_gene","TR_gene",
+                                                "pseudogene")) &
+                      (!gene_biotype %in% 
+                           c("snoRNA","misc_RNA"))], 
+       aes(x=gene_biotype_excl,y=log(stnd_dist,base=10),fill=gene_biotype_excl))+
+    geom_violin(trim=FALSE)+
+    geom_boxplot(width=0.1)+
+    theme_cowplot()+
+    scale_fill_viridis(discrete=T,alpha=0.5)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position="none")+
+    ylab("Log 10 Distance from Interaction to RNA")+
+    xlab("Interaction Type")+
+    #Wilcoxon test	- t-test (non-parametric)
+    stat_compare_means(label = "p.signif", method = "wilcox.test",
+                       label.y=rep(7,3),hide.ns = TRUE,
+                       aes(label = ..p.adj..), #adjust for multiple testing
+                       ref.group=".all.")#Pairwise comparison against all(mean)
+
+```
+
+MALAT1 and NEAT1 interact at similar distances to miRNA and snRNA. The lncRNA 
+and protein coding RNA appear to interact at similar distances but if we look at
+there in isolation and perform a non-parametric t-test between them, does this 
+hold?
+
+```{r}
+#leave just lncRNA and pcRNA - exclude MALAT1 and NEAT1
+ggplot(res_biotyp[q.value<0.05 & interaction=="cis" & 
+                      gene_biotype_excl %in% c("lncRNA","pcRNA")], 
+       aes(x=gene_biotype_excl,y=log(stnd_dist,base=10),fill=gene_biotype_excl))+
+    geom_violin(trim=FALSE)+
+    geom_boxplot(width=0.1)+
+    theme_cowplot()+
+    scale_fill_viridis(discrete=T,alpha=0.5)+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position="none")+
+    ylab("Log 10 Distance from Interaction to RNA")+
+    xlab("Interaction Type")+
+    #Wilcoxon test	- t-test (non-parametric)
+    stat_compare_means(label = "p.signif", method = "wilcox.test",
+                       label.y=rep(5,2),hide.ns = TRUE,
+                       aes(label = ..p.adj..), #adjust for multiple testing
+                       ref.group="pcRNA")#Pairwise comparison against all(mean)
+
+```
+
+We can look into these differences further but first, let's consider the 
+differences between significant cis and trans interactions. There are
+`r nrow(res[q.value<0.05])` significant interactions. Of 
+these, `r round(nrow(res[is.na(distance) & q.value<0.05])/nrow(res[q.value<0.05])*100,1)`%
+are trans whereas `r round(nrow(res[!is.na(distance) & q.value<0.05])/nrow(res[q.value<0.05])*100,1)`%
+are cis. Is there a small number of RNAs contributing to all of these cis or 
+trans interactions?
+  
+```{r}
+#get the number of interactions per RNA for trans/cis
+res_meta <- res[q.value<0.05,list(sum(count),length(unique(bait_name))),
+      by=interaction]
+res_meta[,prop:=V1/V2]
+
+#now get
+ggplot(res_meta, 
+       aes(x=interaction,y=prop,fill=interaction)) +
+  geom_bar(stat="identity")+
+  theme_cowplot()+
+  scale_fill_viridis(discrete=T)+
+  theme(legend.position="none")+
+  ylab("Number of Interactions per RNA")+
+  xlab("Interaction Type")
+```
 
 Roughly the same number of interactions per RNA for trans and cis interactions.
 
+>>>>>>> cdb806a1a971dc262447f0fd225b6f69dc73e46a
 What if interactions associated with Malat1 and Neat1 are dropped, how does
 that affect: vast majority (80%+) of trans interactions are by non-coding RNA; 
 predominately lncRNAs and the majority of cis are by protein coding RNAs (75%+)?
@@ -1221,7 +1496,10 @@ Again the proportions appear identical when MALAT1 and NEAT1 are excluded.
 
 
 ## ChromHMM & Coding, Non-coding
+<<<<<<< HEAD
 COMMENTED OUT, WOULD NEED TO RERUN EVERYTHING TO GET RESULTS
+=======
+>>>>>>> cdb806a1a971dc262447f0fd225b6f69dc73e46a
 
 Let's look at the significant coding non-coding groups of RNA fromt he last 
 violin plot across the different ChromHMM states to see if there is any 
@@ -1256,6 +1534,10 @@ GenomicRanges::mcols(g) = my.mcols[, !colnames(my.mcols) %in% black.names]
 chrHMM_list <- GenomicRanges::split(g, g$ChromHMM, drop = TRUE)
 #get state names for IDs
 sort(unique(df$ChromHMM))
+<<<<<<< HEAD
+=======
+
+>>>>>>> cdb806a1a971dc262447f0fd225b6f69dc73e46a
 #set up results with coding non-coding info
 #RNA types with less than 10 interactions removed
 res_biotyp[q.value<0.05,.N,by=gene_biotype_excl][N<=10]$gene_biotype_excl
@@ -1280,18 +1562,30 @@ rm(gres)
 annotation <- 
   genomation::annotateWithFeatures(gres_list, chrHMM_list)
 ```
+<<<<<<< HEAD
 ```{r,echo=FALSE,eval = FALSE}
+=======
+```{r,echo=FALSE}
+>>>>>>> cdb806a1a971dc262447f0fd225b6f69dc73e46a
 annotation <- 
     readRDS("/rds/general/project/neurogenomics-lab/live/Projects/radicl_seq/data/ChromHMM_state_annotation_coding_noncoding.rds")
 ```
 
 Now create the plot:
+<<<<<<< HEAD
 ```{r,eval = FALSE}
+=======
+```{r}
+>>>>>>> cdb806a1a971dc262447f0fd225b6f69dc73e46a
 #don't produce heatmap, take matrix, standardise and replot
 annot_mtrx <- genomation::heatTargetAnnotation(annotation,plot=FALSE)
 #change column order
 col.order <- paste0("E",1:15)
 annot_mtrx <- annot_mtrx[,col.order]
+<<<<<<< HEAD
+=======
+
+>>>>>>> cdb806a1a971dc262447f0fd225b6f69dc73e46a
 #plot raw first
 #convert to df
 annot_df<-reshape2::melt(annot_mtrx)
@@ -1314,6 +1608,10 @@ annot_df <- annot_df%>%
         .$State == "E13" ~ "13.Repressed.Polycomb",
         .$State == "E14" ~ "14.Weak.Repressed.Polycomb",
         .$State == "E15" ~ "15.Quiescent")))
+<<<<<<< HEAD
+=======
+
+>>>>>>> cdb806a1a971dc262447f0fd225b6f69dc73e46a
 # Reorder factor levels for plot
 annot_df$State_name <- 
     factor(annot_df$State_name,
@@ -1346,7 +1644,11 @@ comparisons.
 variables, in our case RNA Type and ChromHMM state. Null hypothesis is there is 
 no relationship.
 
+<<<<<<< HEAD
 ```{r,eval = FALSE}
+=======
+```{r}
+>>>>>>> cdb806a1a971dc262447f0fd225b6f69dc73e46a
 #convert back to nxm matrix
 annot_mtrx <- 
   reshape2::dcast(annot_df, `RNA Type` ~ State_name,value.var = "Overlap")
@@ -1360,16 +1662,31 @@ chisq
 So there is a relationship between RNA type and ChromHMM state. Let's look at 
 the significance of specific interactions:
 
+<<<<<<< HEAD
 ```{r,eval = FALSE}
+=======
+```{r}
+>>>>>>> cdb806a1a971dc262447f0fd225b6f69dc73e46a
 #change z-scores to p-values - https://www.biostars.org/p/17227/
 #2 sided test
 pvalue2sided <- function(z){2*pnorm(-abs(z))}
 chisq_pvals <- apply(chisq$stdres,1:2,pvalue2sided)
+<<<<<<< HEAD
 #if we were to check all cells
 p.val <- 0.05
 adj.p.val <- p.val/(ncol(chisq$stdres)*nrow(chisq$stdres))
 chisq_sig <- reshape2::melt(chisq_pvals<adj.p.val)
 names(chisq_sig) <- c("RNA Type","State_name","signif")
+=======
+
+#if we were to check all cells
+p.val <- 0.05
+adj.p.val <- p.val/(ncol(chisq$stdres)*nrow(chisq$stdres))
+
+chisq_sig <- reshape2::melt(chisq_pvals<adj.p.val)
+names(chisq_sig) <- c("RNA Type","State_name","signif")
+
+>>>>>>> cdb806a1a971dc262447f0fd225b6f69dc73e46a
 #add significance column to other data
 annot_df_sig <- merge(annot_df,chisq_sig,by=c("RNA Type","State_name"))
 #add text significance to be displayed in heat map
@@ -1399,8 +1716,15 @@ differences between pcRNAs and ncRNAs like lncRNAs.
 # Note inclusion of custom annotation, and use of shortcuts
 annots = c("hg38_basicgenes")
 #hg19_basicgenes
+<<<<<<< HEAD
 # Build the annotations (a single GRanges object)
 annotations = annotatr::build_annotations(genome = 'hg38', annotations = annots)
+=======
+
+# Build the annotations (a single GRanges object)
+annotations = annotatr::build_annotations(genome = 'hg38', annotations = annots)
+
+>>>>>>> cdb806a1a971dc262447f0fd225b6f69dc73e46a
 #set up results with coding non-coding info
 #RNA types with less than 10 interactions removed
 res_biotyp[q.value<0.05,.N,by=gene_biotype_excl][N<=10]$gene_biotype_excl
@@ -1419,6 +1743,10 @@ gres = GenomicRanges::makeGRangesFromDataFrame(
   keep.extra.columns=TRUE, 
   starts.in.df.are.0based=FALSE,
   ignore.strand=TRUE)
+<<<<<<< HEAD
+=======
+
+>>>>>>> cdb806a1a971dc262447f0fd225b6f69dc73e46a
 # Intersect the regions we read in with the annotations
 dm_annotated = annotatr::annotate_regions(
   regions = gres,
@@ -1456,6 +1784,10 @@ is more clear if we look at the proportion of each rather than total:
 ```{r}
 annot_counts[,all_N_RNA:=sum(N),by=.(interaction,gene_biotype_excl)]
 annot_counts[,prop_RNA:=(N/all_N_RNA)]
+<<<<<<< HEAD
+=======
+
+>>>>>>> cdb806a1a971dc262447f0fd225b6f69dc73e46a
 ggplot(annot_counts, aes(x=gene_biotype_excl,y=prop_RNA,fill=annot.type.nice))+
   geom_bar(stat="identity",position="dodge")+ #dodge stops stacked
   facet_wrap(~interaction,scales="free_x")+
@@ -1473,6 +1805,10 @@ just look at the overall proportions for a more interpretable picture:
 annot_counts_bth <- dt_dm_annotated[,.N,by=.(gene_biotype_excl,annot.type.nice)]
 annot_counts_bth[,all_N_RNA:=sum(N),by=.(gene_biotype_excl)]
 annot_counts_bth[,prop_RNA:=(N/all_N_RNA)]
+<<<<<<< HEAD
+=======
+
+>>>>>>> cdb806a1a971dc262447f0fd225b6f69dc73e46a
 ggplot(annot_counts, aes(x=gene_biotype_excl,y=prop_RNA,fill=annot.type.nice))+
   geom_bar(stat="identity",position="dodge")+ #dodge stops stacked
   theme_cowplot()+
