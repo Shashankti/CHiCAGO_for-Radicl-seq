@@ -16,3 +16,4 @@ Click on the following to view the differing analysis of the RADICL-Seq data
 using Chicane:
 
 * [Interaction Distance, ChromHMM Genome State & Coding Non-coding RNA Analysis](https://Shashankti.github.io/CHiCAGO_for-Radicl-seq/chicane_analysis/analysis_dist_ChromHMM.html)
+* [Interaction type, Multiple testing correction & Different runs of Chicane compared](https://shashankti.github.io/Chicane_analysis/index.html)
